@@ -40,6 +40,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const apiService = {
   // GET
   async get<T = any>(endpoint: string): Promise<T> {
+    // ✅ Usa paréntesis (), no backticks ``
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
       headers: getAuthHeaders(),

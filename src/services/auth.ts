@@ -1,4 +1,8 @@
-const API_URL = 'http://localhost:3000/api/auth';
+import { API_BASE_URL } from '../config/api'; // ⬅️ IMPORTAR
+
+// const API_URL = 'http://localhost:3000/api/auth';
+
+const API_URL = `${API_BASE_URL}/api/auth`;
 
 export interface LoginCredentials {
   email: string;
@@ -21,7 +25,6 @@ class AuthService {
   private user: User | null = null;
 
   constructor() {
-    // Recuperar token y usuario del sessionStorage al iniciar
     this.token = sessionStorage.getItem('token');
     const userStr = sessionStorage.getItem('user');
     if (userStr) {
@@ -34,6 +37,7 @@ class AuthService {
   }
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    // ✅ Usa paréntesis, no backticks
     const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,12 +51,11 @@ class AuthService {
 
     const data: AuthResponse = await response.json();
     
-    // Guardar en sessionStorage
     this.token = data.token;
     this.user = data.user;
     sessionStorage.setItem('token', data.token);
     sessionStorage.setItem('user', JSON.stringify(data.user));
-
+    
     return data;
   }
 
@@ -86,12 +89,11 @@ class AuthService {
 
   async verifyToken(): Promise<boolean> {
     if (!this.token) return false;
-
+    
     try {
       const response = await fetch(`${API_URL}/verify`, {
         headers: { 'Authorization': `Bearer ${this.token}` },
       });
-
       return response.ok;
     } catch {
       return false;
