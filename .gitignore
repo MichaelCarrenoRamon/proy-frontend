@@ -1,9 +1,13 @@
 # Dependencias
 node_modules/
 
-# Variables de entorno
+# Variables de entorno (solo las locales)
 .env
 .env.local
+.env.*.local
+
+# NO ignorar .env.production (necesario para despliegue)
+!.env.production
 
 # Build
 dist/
