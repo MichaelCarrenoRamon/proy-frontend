@@ -2,7 +2,7 @@
 node_modules/
 
 # Variables de entorno (solo las locales)
-.env
+!.env
 .env.local
 .env.*.local
 
