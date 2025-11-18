@@ -1,5 +1,6 @@
 import { db } from '../services/database';
 import type { Case } from '../types/Case';
+import { apiService } from '../services/apiService';
 
 let currentStep = 1;
 const totalSteps = 3;
@@ -82,33 +83,17 @@ export async function initEditUserForm(cedula: string) {
 
 async function loadUserData(cedula: string) {
   try {
-    // Obtener datos del caso
-    const caseResponse = await fetch(`http://localhost:3000/api/cases/${cedula}`, {
-      headers: {
-        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-      }
-    });
+    console.log('📥 Cargando datos del usuario:', cedula);
     
-    if (!caseResponse.ok) {
-      throw new Error('No se pudo cargar el caso');
-    }
-    
-    const caseData = await caseResponse.json();
+    // ✅ Usar apiService en lugar de fetch
+    const caseData = await apiService.get(`/api/cases/${cedula}`);
     
     // Obtener ficha socioeconómica
     let fichaData = null;
     try {
-      const fichaResponse = await fetch(`http://localhost:3000/api/cases/${cedula}/ficha`, {
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-        }
-      });
-      
-      if (fichaResponse.ok) {
-        fichaData = await fichaResponse.json();
-      }
+      fichaData = await apiService.get(`/api/cases/${cedula}/ficha`);
     } catch (error) {
-      console.log('No se encontró ficha socioeconómica');
+      console.log('⚠️ No se encontró ficha socioeconómica');
     }
     
     // Poblar formData con los datos obtenidos
@@ -165,7 +150,7 @@ async function loadUserData(cedula: string) {
       actividadesRealizadas: caseData.actividades_realizadas || ''
     };
     
-    console.log('✅ Datos cargados:', formData);
+    console.log('✅ Datos cargados correctamente');
     
   } catch (error) {
     console.error('❌ Error al cargar datos:', error);
@@ -905,12 +890,10 @@ async function updateCase() {
   nextBtn.textContent = 'Actualizando...';
   
   try {
-    // ✅ Verificar si la cédula cambió
     const nuevaCedula = formData.cedula;
     const cedulaCambio = originalCedula !== nuevaCedula;
     
     if (cedulaCambio) {
-      // Confirmar con el usuario
       const confirmacion = confirm(
         `⚠️ ADVERTENCIA: Vas a cambiar la cédula de ${originalCedula} a ${nuevaCedula}\n\n` +
         `Esto creará un nuevo registro con la nueva cédula y eliminará el anterior.\n\n` +
@@ -925,7 +908,7 @@ async function updateCase() {
     }
     
     const caseData = {
-      nro_de_cedula_usuario: nuevaCedula, // ✅ Usar la nueva cédula
+      nro_de_cedula_usuario: nuevaCedula,
       nombres_y_apellidos_de_usuario: formData.nombres,
       fecha_de_nacimiento: formData.fechaNacimiento,
       nro_proceso_judicial_expediente: formData.nroProceso,
@@ -979,24 +962,12 @@ async function updateCase() {
     
     console.log('📤 Actualizando caso:', originalCedula, '→', nuevaCedula);
     
-    // ✅ Endpoint diferente si cambió la cédula
+    // ✅ Usar apiService con endpoint correcto
     const endpoint = cedulaCambio 
-      ? `http://localhost:3000/api/cases/${originalCedula}/migrate/${nuevaCedula}`
-      : `http://localhost:3000/api/cases/${originalCedula}/complete`;
+      ? `/api/cases/${originalCedula}/migrate/${nuevaCedula}`
+      : `/api/cases/${originalCedula}/complete`;
     
-    const response = await fetch(endpoint, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-      },
-      body: JSON.stringify({ caseData, fichaSocioeconomica })
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error al actualizar');
-    }
+    await apiService.put(endpoint, { caseData, fichaSocioeconomica });
     
     console.log('✅ Usuario actualizado exitosamente');
     
@@ -1009,9 +980,9 @@ async function updateCase() {
     document.getElementById('editUserFormModal')?.remove();
     window.location.reload();
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error al actualizar:', error);
-    alert(`Error al actualizar: ${(error as Error).message}`);
+    alert(`Error al actualizar: ${error.message}`);
     nextBtn.disabled = false;
     nextBtn.textContent = 'Actualizar';
   }
