@@ -1,5 +1,6 @@
 import { db } from '../services/database';
 import { showSurveyForm } from './SurveyForm';
+import { apiService } from '../services/apiService';
 
 let currentStep = 1;
 const totalSteps = 3;
@@ -801,108 +802,85 @@ function collectStepData() {
     });
   }
   
-async function saveCase() {
-  const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
-  nextBtn.disabled = true;
-  nextBtn.textContent = 'Guardando...';
-  
-  try {
-    const caseData = {
-      nro_de_cedula_usuario: formData.cedula,
-      nombres_y_apellidos_de_usuario: formData.nombres,
-      fecha_de_nacimiento: formData.fechaNacimiento,
-      nro_proceso_judicial_expediente: formData.nroProceso,
-      telefono: formData.telefono,
-      telefono_fijo: formData.telefonoFijo || null,
-      email: formData.email || null,
-      direccion: formData.direccion,
-      materia: formData.materia,
-      tipo_de_proceso: formData.tipoProceso,
-      parte_actor_demandado: formData.parte,
-      juez_fiscal: formData.juezFiscal || '',
-      juez_fiscal_1: null,
-      contraparte: formData.contraparte || '',
-      actividades_realizadas: formData.actividadesRealizadas || '',
-      estado_actual: formData.estadoActual,
-      fecha_de_proxima_actividad: formData.fechaProximaActividad || new Date().toISOString().split('T')[0],
-      fecha: formData.fecha,
-      gestion: formData.gestion,
-      ocupacion: formData.ocupacion || null,
-      instruccion: formData.instruccion || null,
-      etnia: formData.etnia || null,
-      genero: formData.genero,
-      estado_civil: formData.estadoCivil,
-      nro_hijos: formData.nroHijos || 0,
-      discapacidad: formData.discapacidad || null,
-      tipo_usuario: formData.tipoUsuario || null,
-      linea_servicio: formData.materia,
-      tema: formData.tema,
-      estudiante_asignado: formData.estudiante || null,
-      asesor_legal: formData.asesorLegal || null
-    };
+  async function saveCase() {
+    const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
+    nextBtn.disabled = true;
+    nextBtn.textContent = 'Guardando...';
     
-    const fichaSocioeconomica = {
-      padre_trabaja: formData.padreTrabaja || false,
-      madre_trabaja: formData.madreTrabaja || false,
-      otros_trabajan: formData.otrosTrabajan || false,
-      tiene_vehiculo: formData.tieneVehiculo || false,
-      tiene_negocio: formData.tieneNegocio || false,
-      tiene_casa: formData.tieneCasa || false,
-      tiene_departamento: formData.tieneDepartamento || false,
-      tiene_terreno: formData.tieneTerreno || false,
-      otros_bienes: formData.otrosBienes || null,
-      ingresos_totales: formData.ingresosTotales || 0,
-      egresos_totales: formData.egresosTotales || 0,
-      gasto_arriendo: formData.gastoArriendo || 0,
-      gasto_luz: formData.gastoLuz || 0,
-      gasto_agua: formData.gastoAgua || 0,
-      gasto_telefono: formData.gastoTelefono || 0,
-      gasto_internet: formData.gastoInternet || 0
-    };
-    
-    console.log('📤 Datos a enviar:');
-    console.log('CaseData:', caseData);
-    console.log('FichaSocioeconomica:', fichaSocioeconomica);
-    
-    const response = await fetch('http://localhost:3000/api/cases/complete', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-      },
-      body: JSON.stringify({ caseData, fichaSocioeconomica })
-    });
-    
-    console.log('📥 Status de respuesta:', response.status);
-    
-    const responseText = await response.text();
-    console.log('📥 Respuesta del servidor (texto):', responseText);
-    
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { error: responseText };
-      }
-      console.error('❌ Error del servidor:', errorData);
-      throw new Error(errorData.error || errorData.details || 'Error desconocido del servidor');
+    try {
+      const caseData = {
+        nro_de_cedula_usuario: formData.cedula,
+        nombres_y_apellidos_de_usuario: formData.nombres,
+        fecha_de_nacimiento: formData.fechaNacimiento,
+        nro_proceso_judicial_expediente: formData.nroProceso,
+        telefono: formData.telefono,
+        telefono_fijo: formData.telefonoFijo || null,
+        email: formData.email || null,
+        direccion: formData.direccion,
+        materia: formData.materia,
+        tipo_de_proceso: formData.tipoProceso,
+        parte_actor_demandado: formData.parte,
+        juez_fiscal: formData.juezFiscal || '',
+        juez_fiscal_1: null,
+        contraparte: formData.contraparte || '',
+        actividades_realizadas: formData.actividadesRealizadas || '',
+        estado_actual: formData.estadoActual,
+        fecha_de_proxima_actividad: formData.fechaProximaActividad || new Date().toISOString().split('T')[0],
+        fecha: formData.fecha,
+        gestion: formData.gestion,
+        ocupacion: formData.ocupacion || null,
+        instruccion: formData.instruccion || null,
+        etnia: formData.etnia || null,
+        genero: formData.genero,
+        estado_civil: formData.estadoCivil,
+        nro_hijos: formData.nroHijos || 0,
+        discapacidad: formData.discapacidad || null,
+        tipo_usuario: formData.tipoUsuario || null,
+        linea_servicio: formData.materia,
+        tema: formData.tema,
+        estudiante_asignado: formData.estudiante || null,
+        asesor_legal: formData.asesorLegal || null
+      };
+      
+      const fichaSocioeconomica = {
+        padre_trabaja: formData.padreTrabaja || false,
+        madre_trabaja: formData.madreTrabaja || false,
+        otros_trabajan: formData.otrosTrabajan || false,
+        tiene_vehiculo: formData.tieneVehiculo || false,
+        tiene_negocio: formData.tieneNegocio || false,
+        tiene_casa: formData.tieneCasa || false,
+        tiene_departamento: formData.tieneDepartamento || false,
+        tiene_terreno: formData.tieneTerreno || false,
+        otros_bienes: formData.otrosBienes || null,
+        ingresos_totales: formData.ingresosTotales || 0,
+        egresos_totales: formData.egresosTotales || 0,
+        gasto_arriendo: formData.gastoArriendo || 0,
+        gasto_luz: formData.gastoLuz || 0,
+        gasto_agua: formData.gastoAgua || 0,
+        gasto_telefono: formData.gastoTelefono || 0,
+        gasto_internet: formData.gastoInternet || 0
+      };
+      
+      console.log('📤 Enviando datos del caso...');
+      
+      // ✅ CAMBIO: Usar apiService en lugar de fetch directo
+      const result = await apiService.post('/api/cases/complete', {
+        caseData,
+        fichaSocioeconomica
+      });
+      
+      console.log('✅ Caso guardado exitosamente:', result);
+      
+      // Mostrar modal de encuesta
+      showSurveyModal(formData.cedula, formData.nombres);
+      
+    } catch (error: any) {
+      console.error('❌ Error al guardar caso:', error);
+      alert(`Error al guardar: ${error.message}\n\nRevisa la consola para más detalles.`);
+      nextBtn.disabled = false;
+      nextBtn.textContent = 'Finalizar';
     }
-    
-    const result = JSON.parse(responseText);
-    console.log('✅ Caso guardado exitosamente:', result);
-    
-    // Mostrar modal de encuesta
-    showSurveyModal(formData.cedula, formData.nombres);
-    
-  } catch (error) {
-    console.error('❌ Error completo:', error);
-    const errorMessage = (error as Error).message || 'Error desconocido';
-    alert(`Error al guardar: ${errorMessage}\n\nRevisa la consola del navegador (F12) y la terminal del backend para más detalles.`);
-    nextBtn.disabled = false;
-    nextBtn.textContent = 'Finalizar';
   }
-}
   
 function showSurveyModal(cedula: string, nombre: string) {
   const modal = document.createElement('div');
