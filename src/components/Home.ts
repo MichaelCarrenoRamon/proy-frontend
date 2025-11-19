@@ -1,5 +1,6 @@
 import type { Case } from '../types/Case';
 import { db } from '../services/database';
+import { apiService } from '../services/apiService';
 
 export function renderHome(): string {
   return `
@@ -193,15 +194,8 @@ function updateStats(cases: Case[]) {
 
 async function loadSurveyStats() {
   try {
-    const response = await fetch('http://localhost:3000/api/encuestas/stats', {
-      headers: {
-        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-      }
-    });
-    
-    if (!response.ok) throw new Error('Error al cargar estadísticas');
-    
-    const stats = await response.json();
+    // ✅ Usar apiService en lugar de fetch
+    const stats = await apiService.get('/api/encuestas/stats');
     
     console.log('📊 Estadísticas recibidas:', stats);
     
@@ -222,7 +216,7 @@ async function loadSurveyStats() {
     document.getElementById('totalEncuestas')!.textContent = total.toString();
     document.getElementById('volveriaUsar')!.textContent = `${porcentajeVolveria}%`;
     
-    // Medio más común (buscar en los elementos con medio_conocimiento)
+    // Medio más común
     const medios = stats.filter((s: any) => s.medio_conocimiento);
     if (medios.length > 0) {
       const medioMasComun = medios.reduce((prev: any, current: any) => 
@@ -238,7 +232,6 @@ async function loadSurveyStats() {
     
   } catch (error) {
     console.error('❌ Error al cargar estadísticas de encuestas:', error);
-    // Mostrar valores por defecto en caso de error
     document.getElementById('totalEncuestas')!.textContent = '0';
     document.getElementById('volveriaUsar')!.textContent = '0%';
     document.getElementById('medioMasComun')!.textContent = 'Error';

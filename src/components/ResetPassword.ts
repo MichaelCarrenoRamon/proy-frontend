@@ -67,17 +67,50 @@ export function initResetPassword() {
   const messageDiv = document.getElementById('resetMessage')!;
   const resetButton = document.getElementById('resetButton') as HTMLButtonElement;
 
-  // Obtener token de la URL
-  const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
-  const token = urlParams.get('token');
-
+  // Obtener token de la URL - Compatible con hash routing
+  let token: string | null = null;
+  
+  // Intentar obtener el token del hash
+  const hash = window.location.hash;
+  console.log('🔍 Hash completo:', hash);
+  
+  if (hash.includes('?')) {
+    const queryString = hash.split('?')[1];
+    const urlParams = new URLSearchParams(queryString);
+    token = urlParams.get('token');
+    console.log('🎫 Token extraído del hash:', token);
+  }
+  
+  // Fallback: intentar obtener de la query string normal
   if (!token) {
+    const urlParams = new URLSearchParams(window.location.search);
+    token = urlParams.get('token');
+    console.log('🎫 Token extraído de query string:', token);
+  }
+
+  // Validar token
+  if (!token) {
+    console.error('❌ Token no encontrado');
     messageDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl text-sm';
-    messageDiv.textContent = 'Token no válido. Solicita un nuevo enlace de recuperación.';
+    messageDiv.textContent = 'Token no válido o expirado. Por favor, solicita un nuevo enlace de recuperación.';
     messageDiv.classList.remove('hidden');
     resetButton.disabled = true;
+    
+    // Botón para volver al login
+    const backButton = document.createElement('button');
+    backButton.type = 'button';
+    backButton.className = 'w-full mt-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl transition';
+    backButton.textContent = 'Volver al inicio de sesión';
+    backButton.onclick = () => {
+      window.location.hash = '#';
+      window.location.reload();
+    };
+    form.appendChild(backButton);
+    
     return;
   }
+
+  console.log('✅ Token válido, formulario habilitado');
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -92,24 +125,39 @@ export function initResetPassword() {
       return;
     }
 
+    if (newPassword.length < 6) {
+      messageDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl text-sm';
+      messageDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
+      messageDiv.classList.remove('hidden');
+      return;
+    }
+
     resetButton.disabled = true;
     resetButton.textContent = 'Restableciendo...';
 
     try {
-      await authService.resetPassword(token, newPassword);
+      console.log('📤 Enviando solicitud de restablecimiento...');
+      await authService.resetPassword(token!, newPassword);
 
+      console.log('✅ Contraseña actualizada');
       messageDiv.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-xl text-sm';
-      messageDiv.textContent = 'Contraseña actualizada exitosamente. Redirigiendo...';
+      messageDiv.textContent = '✓ Contraseña actualizada exitosamente. Redirigiendo al inicio de sesión...';
       messageDiv.classList.remove('hidden');
 
+      // Deshabilitar el formulario
+      newPasswordInput.disabled = true;
+      confirmPasswordInput.disabled = true;
+
+      // Redirigir después de 3 segundos
       setTimeout(() => {
         window.location.hash = '#';
         window.location.reload();
-      }, 2000);
+      }, 3000);
 
     } catch (error: any) {
+      console.error('❌ Error al restablecer contraseña:', error);
       messageDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl text-sm';
-      messageDiv.textContent = error.message;
+      messageDiv.textContent = error.message || 'Error al restablecer la contraseña. Por favor, intenta nuevamente.';
       messageDiv.classList.remove('hidden');
       resetButton.disabled = false;
       resetButton.textContent = 'Restablecer Contraseña';

@@ -1,5 +1,6 @@
 import { db } from '../services/database';
 import type { Case } from '../types/Case';
+import { apiService } from '../services/apiService';
 
 export function renderExistingClientSearch(): string {
   return `
@@ -339,7 +340,7 @@ async function saveNewActivity(client: Case) {
     return;
   }
 
-  const submitBtn = document.querySelector('#activityForm button[type="submit"]') as HTMLButtonElement;
+  const submitBtn = document.getElementById('submitActivityBtn') as HTMLButtonElement;
   
   try {
     if (submitBtn) {
@@ -362,74 +363,41 @@ async function saveNewActivity(client: Case) {
 
     console.log('📤 Actualizando caso:', client.nro_de_cedula_usuario);
 
-    // ✅ ACTUALIZAR CASO
-    const response = await fetch(`http://localhost:3000/api/cases/${client.nro_de_cedula_usuario}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-      },
-      body: JSON.stringify({
-        actividades_realizadas: actividadesActualizadas,
-        estado_actual: nuevoEstado,
-        fecha_de_proxima_actividad: proximaFecha || client.fecha_de_proxima_actividad || new Date().toISOString().split('T')[0]
-      })
+    // ✅ Usar apiService en lugar de fetch
+    await apiService.put(`/api/cases/${client.nro_de_cedula_usuario}`, {
+      actividades_realizadas: actividadesActualizadas,
+      estado_actual: nuevoEstado,
+      fecha_de_proxima_actividad: proximaFecha || client.fecha_de_proxima_actividad || new Date().toISOString().split('T')[0]
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: errorText };
-      }
-      throw new Error(errorData.error || `Error ${response.status}`);
-    }
-
-    const result = await response.json();
     console.log('✅ Caso actualizado exitosamente');
 
-    // ✅ CREAR ACTIVIDAD EN EL CALENDARIO SI HAY PRÓXIMA FECHA
+    // ✅ Crear actividad en el calendario si hay próxima fecha
     if (proximaFecha) {
       try {
         console.log('📅 Creando actividad en calendario...');
         
-        const activityResponse = await fetch('http://localhost:3000/api/activities', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-          },
-          body: JSON.stringify({
-            titulo: `Seguimiento: ${client.nombres_y_apellidos_de_usuario}`,
-            descripcion: nuevaActividad,
-            fecha_actividad: proximaFecha,
-            tipo: 'cliente',
-            completada: false,
-            cedula_cliente: client.nro_de_cedula_usuario
-          })
+        await apiService.post('/api/activities', {
+          titulo: `Seguimiento: ${client.nombres_y_apellidos_de_usuario}`,
+          descripcion: nuevaActividad,
+          fecha_actividad: proximaFecha,
+          tipo: 'cliente',
+          completada: false,
+          cedula_cliente: client.nro_de_cedula_usuario
         });
 
-        if (activityResponse.ok) {
-          const activityResult = await activityResponse.json();
-          console.log('✅ Actividad agregada al calendario:', activityResult);
-        } else {
-          const errorText = await activityResponse.text();
-          console.warn('⚠️ No se pudo agregar al calendario:', errorText);
-        }
+        console.log('✅ Actividad agregada al calendario');
       } catch (activityError) {
         console.warn('⚠️ Error al agregar actividad:', activityError);
-        // No bloqueamos el flujo principal si falla el calendario
       }
     } else {
-      console.log('ℹ️ No se especificó próxima fecha, no se creó actividad en calendario');
+      console.log('ℹ️ No se especificó próxima fecha');
     }
 
     // Mostrar modal de encuesta
     showSurveyModalAfterUpdate(client.nro_de_cedula_usuario, client.nombres_y_apellidos_de_usuario);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error completo:', error);
     
     if (submitBtn) {
@@ -437,7 +405,7 @@ async function saveNewActivity(client: Case) {
       submitBtn.textContent = 'Guardar Actividad';
     }
     
-    alert(`Error al guardar la actividad:\n\n${(error as Error).message}\n\nVerifica la consola para más detalles`);
+    alert(`Error al guardar la actividad:\n\n${error.message}`);
   }
 }
 

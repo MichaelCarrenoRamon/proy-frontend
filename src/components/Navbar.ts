@@ -1,6 +1,9 @@
 import { router, Route } from '../router/Router';
 
 export function renderNavbar(): string {
+  // Obtener la base URL de la aplicación
+  const baseUrl = window.location.origin + window.location.pathname;
+  
   return `
     <header class="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/10 border-b border-white/20 shadow-lg">
       <div class="container mx-auto px-4 py-4">
@@ -54,16 +57,51 @@ export function renderNavbar(): string {
           </button>
         </div>
       </div>
+
+      <!-- Mobile Menu (desplegable) -->
+      <div id="mobileMenu" class="hidden md:hidden border-t border-white/20 bg-white/5 backdrop-blur-md">
+        <nav class="container mx-auto px-4 py-4 space-y-2">
+          <button data-route="inicio" class="mobile-nav-link w-full text-left px-4 py-3 rounded-lg font-medium transition">
+            <span class="flex items-center space-x-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+              </svg>
+              <span>Inicio</span>
+            </span>
+          </button>
+          <button data-route="casos" class="mobile-nav-link w-full text-left px-4 py-3 rounded-lg font-medium transition">
+            <span class="flex items-center space-x-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <span>Casos</span>
+            </span>
+          </button>
+          <button data-route="clientes" class="mobile-nav-link w-full text-left px-4 py-3 rounded-lg font-medium transition">
+            <span class="flex items-center space-x-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+              <span>Usuarios</span>
+            </span>
+          </button>
+        </nav>
+      </div>
     </header>
   `;
 }
 
 export function initNavbar() {
   const navLinks = document.querySelectorAll('.nav-link');
+  const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
   
   // Actualizar enlaces activos
   const updateActiveLink = (route: Route) => {
-    navLinks.forEach(link => {
+    const allLinks = [...Array.from(navLinks), ...Array.from(mobileNavLinks)];
+    
+    allLinks.forEach(link => {
       const linkRoute = link.getAttribute('data-route');
       if (linkRoute === route) {
         link.classList.add('bg-gradient-to-r', 'from-blue-600', 'to-indigo-600', 'text-white', 'shadow-lg');
@@ -75,17 +113,44 @@ export function initNavbar() {
     });
   };
 
-  // Event listeners
-  navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-      const route = link.getAttribute('data-route') as Route;
-      router.navigate(route);
-    });
+  // Toggle mobile menu
+  mobileMenuBtn?.addEventListener('click', () => {
+    mobileMenu?.classList.toggle('hidden');
   });
+
+  // Event listeners para navegación
+  const handleNavigation = (link: Element) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const route = link.getAttribute('data-route') as Route;
+      
+      // Cerrar menú móvil si está abierto
+      mobileMenu?.classList.add('hidden');
+      
+      // Navegar usando el router
+      router.navigate(route);
+      
+      // Log para debugging en producción
+      console.log(`Navegando a: ${route}`);
+      console.log(`URL actual: ${window.location.href}`);
+      console.log(`Hash: ${window.location.hash}`);
+    });
+  };
+
+  navLinks.forEach(handleNavigation);
+  mobileNavLinks.forEach(handleNavigation);
 
   // Actualizar en cambio de ruta
   router.onRouteChange(updateActiveLink);
   
   // Inicializar estado actual
   updateActiveLink(router.getCurrentRoute());
+  
+  // Cerrar menú móvil al hacer clic fuera
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('header') && !mobileMenu?.classList.contains('hidden')) {
+      mobileMenu?.classList.add('hidden');
+    }
+  });
 }
