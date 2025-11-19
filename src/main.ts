@@ -14,16 +14,18 @@ async function init() {
   const app = document.querySelector<HTMLDivElement>('#app')!;
 
   // ============================================
-  // 1. VERIFICAR SI ES RUTA PÚBLICA DE ENCUESTA
+  // 1. DETECTAR RUTA PÚBLICA DE ENCUESTA
   // ============================================
-  const pathname = window.location.pathname;
-  const hash = window.location.hash;
+  const fullHash = window.location.hash; // Ej: #encuesta?cedula=123&nombre=Juan
+  const hashRoute = fullHash.split('?')[0]; // Ej: #encuesta
   
-  // Verificar pathname (/encuesta) O hash (#encuesta)
-  if (pathname === '/encuesta' || hash === '#encuesta' || hash.startsWith('#encuesta?')) {
-    console.log('📋 Cargando encuesta pública...');
-    console.log('  pathname:', pathname);
-    console.log('  hash:', hash);
+  console.log('🔍 Detectando ruta:');
+  console.log('  fullHash:', fullHash);
+  console.log('  hashRoute:', hashRoute);
+  
+  // Verificar si es la ruta de encuesta (con o sin parámetros)
+  if (hashRoute === '#encuesta') {
+    console.log('✅ Ruta de encuesta detectada - Cargando sin login');
     
     // Renderizar HTML de la encuesta
     app.innerHTML = renderPublicSurvey();
@@ -31,13 +33,13 @@ async function init() {
     // Inicializar eventos y lógica
     initPublicSurvey();
     
-    return; // Salir aquí, no ejecutar el resto
+    return; // ⚠️ SALIR AQUÍ - No ejecutar código de autenticación
   }
 
   // ============================================
   // 2. VERIFICAR RECUPERACIÓN DE CONTRASEÑA
   // ============================================
-  if (window.location.hash.startsWith('#recovery')) {
+  if (fullHash.startsWith('#recovery')) {
     app.innerHTML = renderResetPassword();
     initResetPassword();
     return;
@@ -46,10 +48,13 @@ async function init() {
   // ============================================
   // 3. VERIFICAR AUTENTICACIÓN (RUTAS PRIVADAS)
   // ============================================
+  console.log('🔐 Verificando autenticación...');
+  
   const isAuthenticated = authService.isAuthenticated();
   const isTokenValid = isAuthenticated ? await authService.verifyToken() : false;
 
   if (!isAuthenticated || !isTokenValid) {
+    console.log('❌ No autenticado - Mostrando login');
     if (isAuthenticated && !isTokenValid) {
       authService.logout();
     }
@@ -57,6 +62,8 @@ async function init() {
     initLogin();
     return;
   }
+
+  console.log('✅ Usuario autenticado - Cargando app');
 
   // ============================================
   // 4. USUARIO AUTENTICADO - CARGAR APP PRINCIPAL
@@ -91,6 +98,8 @@ async function init() {
     </main>
   `;
 
+  // ... resto del código igual (showCaseOptions, etc)
+  
   function showCaseOptions() {
     document.getElementById('caseOptionsModal')?.remove();
     
@@ -145,8 +154,6 @@ async function init() {
         newClientBtn.onclick = function(e) {
           e.preventDefault();
           e.stopPropagation();
-          console.log('✅ Click en Nuevo Cliente');
-          
           modal.remove();
           
           setTimeout(() => {
@@ -167,8 +174,6 @@ async function init() {
         existingClientBtn.onclick = function(e) {
           e.preventDefault();
           e.stopPropagation();
-          console.log('✅ Click en Cliente Existente');
-          
           modal.remove();
           
           setTimeout(() => {
@@ -189,14 +194,12 @@ async function init() {
         cancelBtn.onclick = function(e) {
           e.preventDefault();
           e.stopPropagation();
-          console.log('✅ Click en Cancelar');
           modal.remove();
         };
       }
   
       modal.onclick = function(e) {
         if (e.target === modal) {
-          console.log('✅ Click en fondo');
           modal.remove();
         }
       };

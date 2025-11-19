@@ -307,66 +307,220 @@ async function submitSurvey(cedula: string, nombre: string, modal: HTMLElement) 
 
 async function generatePDF(cedula: string, nombre: string, data: any) {
   try {
-    console.log('📄 Generando PDF...');
+    console.log('📄 Generando PDF completo...');
     
     // Obtener datos completos del caso
-    const caseData = await apiService.get(`/api/cases/${cedula}`);
-    
-    // Obtener ficha socioeconómica
-    let fichaData = null;
+    let caseData = null;
     try {
-      fichaData = await apiService.get(`/api/cases/${cedula}/ficha`);
+      caseData = await apiService.get(`/api/cases/${cedula}`);
     } catch (error) {
-      console.log('⚠️ No hay ficha socioeconómica');
+      console.log('⚠️ No se encontraron datos del caso');
     }
-
+    
     // Crear PDF
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 10;
-    let yPos = 8;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+    let yPos = 15;
 
     // ============ HEADER ============
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
     pdf.text('UNIVERSIDAD TÉCNICA DE MACHALA', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 5;
+    yPos += 6;
     
     pdf.setFontSize(11);
     pdf.text('FACULTAD DE CIENCIAS SOCIALES', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4.5;
+    yPos += 5;
     pdf.text('CARRERA DE DERECHO', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4.5;
+    yPos += 5;
     pdf.text('CONSULTORIO JURÍDICO GRATUITO UTMACH', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 8;
+    
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('ENCUESTA DE SATISFACCIÓN', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    // ============ DATOS DEL USUARIO ============
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('DATOS DEL USUARIO', margin, yPos);
     yPos += 6;
     
-    pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('FORMULARIO DE ASESORÍA INICIAL / SOCIOECONÓMICA', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
+    pdf.text(`Nombre: ${nombre}`, margin, yPos);
+    yPos += 5;
+    pdf.text(`Cédula: ${cedula}`, margin, yPos);
+    yPos += 5;
+    
+    const fecha = new Date().toLocaleDateString('es-EC');
+    pdf.text(`Fecha: ${fecha}`, margin, yPos);
+    yPos += 10;
 
-    // ... (resto del código del PDF igual que antes, pero más corto para ahorrar espacio)
+    // ============ DATOS DEL CASO (si existen) ============
+    if (caseData) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('INFORMACIÓN DEL CASO', margin, yPos);
+      yPos += 6;
+      
+      pdf.setFont('helvetica', 'normal');
+      
+      if (caseData.tipo_caso) {
+        pdf.text(`Tipo de caso: ${caseData.tipo_caso}`, margin, yPos);
+        yPos += 5;
+      }
+      
+      if (caseData.estado) {
+        pdf.text(`Estado: ${caseData.estado}`, margin, yPos);
+        yPos += 5;
+      }
+      
+      if (caseData.fecha_registro) {
+        const fechaRegistro = new Date(caseData.fecha_registro).toLocaleDateString('es-EC');
+        pdf.text(`Fecha de registro: ${fechaRegistro}`, margin, yPos);
+        yPos += 5;
+      }
+      
+      yPos += 5;
+    }
+
+    // ============ RESPUESTAS DE LA ENCUESTA ============
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('RESPUESTAS DE LA ENCUESTA', margin, yPos);
+    yPos += 8;
+    
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+
+    // Pregunta 1
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('1. ¿Cómo se enteró de los servicios del Consultorio Jurídico?', margin, yPos);
+    yPos += 5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`   Respuesta: ${data.medio_conocimiento}`, margin, yPos);
+    yPos += 5;
+    
+    if (data.telefono_referido) {
+      pdf.text(`   Teléfono del referido: ${data.telefono_referido}`, margin, yPos);
+      yPos += 5;
+    }
+    yPos += 3;
+
+    // Pregunta 2
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('2. ¿La información recibida en la asesoría inicial fue?', margin, yPos);
+    yPos += 5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`   Respuesta: ${data.informacion_recibida}`, margin, yPos);
+    yPos += 8;
+
+    // Pregunta 3
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('3. ¿La orientación brindada por el asesor legal y el estudiante fue?', margin, yPos);
+    yPos += 5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`   Respuesta: ${data.orientacion_brindada}`, margin, yPos);
+    yPos += 8;
+
+    // Pregunta 4
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('4. ¿Su nivel de satisfacción con la asesoría recibida fue?', margin, yPos);
+    yPos += 5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`   Respuesta: ${data.nivel_satisfaccion}`, margin, yPos);
+    yPos += 8;
+
+    // Pregunta 5
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('5. ¿Volvería a utilizar los servicios del Consultorio Jurídico?', margin, yPos);
+    yPos += 5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`   Respuesta: ${data.volveria_usar ? 'Sí' : 'No'}`, margin, yPos);
+    yPos += 10;
+
+    // ============ COMENTARIOS ============
+    if (data.comentarios) {
+      // Verificar si hay espacio suficiente
+      if (yPos + 20 > pageHeight - margin) {
+        pdf.addPage();
+        yPos = margin;
+      }
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('COMENTARIOS ADICIONALES:', margin, yPos);
+      yPos += 5;
+      
+      pdf.setFont('helvetica', 'normal');
+      const comentarioLines = pdf.splitTextToSize(data.comentarios, pageWidth - 2 * margin);
+      pdf.text(comentarioLines, margin, yPos);
+      yPos += (comentarioLines.length * 5) + 10;
+    }
+
+    // ============ FIRMA ============
+    // Verificar si hay espacio suficiente para la firma
+    if (yPos + 40 > pageHeight - margin) {
+      pdf.addPage();
+      yPos = margin;
+    }
+
+    yPos += 5;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.text('FIRMA DEL USUARIO:', margin, yPos);
+    yPos += 10;
 
     // Agregar firma si existe (CENTRADA)
     if (data.firma) {
       try {
-        const firmaWidth = 50;
-        const firmaHeight = 15;
+        const firmaWidth = 60;
+        const firmaHeight = 20;
         const firmaX = (pageWidth - firmaWidth) / 2;
-        const firmaY = yPos + 5;
         
-        pdf.addImage(data.firma, 'PNG', firmaX, firmaY, firmaWidth, firmaHeight);
+        pdf.addImage(data.firma, 'PNG', firmaX, yPos, firmaWidth, firmaHeight);
+        yPos += firmaHeight + 5;
+        
         console.log('✅ Firma agregada al PDF');
       } catch (error) {
-        console.error('❌ Error al agregar firma:', error);
+        console.error('❌ Error al agregar firma al PDF:', error);
+        
+        // Si falla la firma, agregar línea para firmar manualmente
+        const lineWidth = 60;
+        const lineX = (pageWidth - lineWidth) / 2;
+        yPos += 15;
+        pdf.line(lineX, yPos, lineX + lineWidth, yPos);
+        yPos += 5;
       }
+    } else {
+      // Línea para firma manual
+      const lineWidth = 60;
+      const lineX = (pageWidth - lineWidth) / 2;
+      yPos += 15;
+      pdf.line(lineX, yPos, lineX + lineWidth, yPos);
+      yPos += 5;
     }
+    
+    // Nombre y cédula debajo de la firma
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.text(nombre, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 4;
+    pdf.text(`CI: ${cedula}`, pageWidth / 2, yPos, { align: 'center' });
 
-    // Guardar PDF
-    const pdfName = `Formulario_${cedula}_${Date.now()}.pdf`;
+    // ============ PIE DE PÁGINA ============
+    yPos = pageHeight - 15;
+    pdf.setFontSize(8);
+    pdf.setTextColor(100);
+    pdf.text('Universidad Técnica de Machala - Consultorio Jurídico Gratuito', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 4;
+    pdf.text(`Generado el ${fecha}`, pageWidth / 2, yPos, { align: 'center' });
+
+    // ============ GUARDAR PDF ============
+    const pdfName = `Encuesta_${cedula}_${Date.now()}.pdf`;
     pdf.save(pdfName);
 
-    console.log('✅ PDF generado:', pdfName);
+    console.log('✅ PDF generado exitosamente:', pdfName);
     return pdfName;
 
   } catch (error) {
