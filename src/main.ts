@@ -8,18 +8,35 @@ import { renderCasesList, loadCasesList } from './components/caseList';
 import { renderClients, loadClients } from './components/Clients';
 import { renderLogin, initLogin } from './components/Login';
 import { renderResetPassword, initResetPassword } from './components/ResetPassword';
+import { initPublicSurvey } from './components/PublicSurvery';
 
 async function init() {
   const app = document.querySelector<HTMLDivElement>('#app')!;
 
-  // Verificar si es página de recuperación de contraseña
+  // ============================================
+  // 1. VERIFICAR SI ES RUTA PÚBLICA DE ENCUESTA
+  // ============================================
+  const pathname = window.location.pathname;
+  
+  if (pathname === '/encuesta') {
+    console.log('📋 Cargando encuesta pública...');
+    // Cargar encuesta SIN autenticación
+    initPublicSurvey();
+    return; // Salir aquí, no ejecutar el resto
+  }
+
+  // ============================================
+  // 2. VERIFICAR RECUPERACIÓN DE CONTRASEÑA
+  // ============================================
   if (window.location.hash.startsWith('#recovery')) {
     app.innerHTML = renderResetPassword();
     initResetPassword();
     return;
   }
 
-  // Verificar autenticación
+  // ============================================
+  // 3. VERIFICAR AUTENTICACIÓN (RUTAS PRIVADAS)
+  // ============================================
   const isAuthenticated = authService.isAuthenticated();
   const isTokenValid = isAuthenticated ? await authService.verifyToken() : false;
 
@@ -33,7 +50,9 @@ async function init() {
     return;
   }
 
-  // Usuario autenticado - inicializar aplicación
+  // ============================================
+  // 4. USUARIO AUTENTICADO - CARGAR APP PRINCIPAL
+  // ============================================
   await db.init();
   
   // Renderizar estructura base con navbar
@@ -237,5 +256,14 @@ async function init() {
     await loadClients();
   }
 }
+
+// Manejar errores globales
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('❌ Promise rechazada no manejada:', event.reason);
+});
+
+window.addEventListener('error', (event) => {
+  console.error('❌ Error global:', event.error);
+});
 
 init();

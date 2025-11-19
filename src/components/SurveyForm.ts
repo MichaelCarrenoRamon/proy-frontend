@@ -375,7 +375,7 @@ async function generatePDF(cedula: string, nombre: string, data: any) {
   }
 }
 
-async function showSuccessWithQR(cedula: string, nombre: string, modal: HTMLElement) {
+export async function showSuccessWithQR(cedula: string, nombre: string, modal: HTMLElement) {
   modal.innerHTML = `
     <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl">
       <div class="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-8 rounded-t-2xl text-center">
