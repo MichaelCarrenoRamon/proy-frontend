@@ -400,7 +400,7 @@ async function copyLinkToClipboard(cedula: string, nombre: string) {
  * @returns Data URL del código QR generado
  */
 export async function generateQRDataURL(cedula: string, nombre: string): Promise<string> {
-  const surveyURL = `${window.location.origin}/encuesta?cedula=${encodeURIComponent(cedula)}&nombre=${encodeURIComponent(nombre)}`;
+  const surveyURL = `${window.location.origin}/#encuesta?cedula=${encodeURIComponent(cedula)}&nombre=${encodeURIComponent(nombre)}`;
   
   return await QRCode.toDataURL(surveyURL, {
     width: 280,

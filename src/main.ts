@@ -8,7 +8,7 @@ import { renderCasesList, loadCasesList } from './components/caseList';
 import { renderClients, loadClients } from './components/Clients';
 import { renderLogin, initLogin } from './components/Login';
 import { renderResetPassword, initResetPassword } from './components/ResetPassword';
-import { initPublicSurvey } from './components/PublicSurvery';
+import { renderPublicSurvey, initPublicSurvey } from './components/PublicSurvey';
 
 async function init() {
   const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -17,11 +17,20 @@ async function init() {
   // 1. VERIFICAR SI ES RUTA PÚBLICA DE ENCUESTA
   // ============================================
   const pathname = window.location.pathname;
+  const hash = window.location.hash;
   
-  if (pathname === '/encuesta') {
+  // Verificar pathname (/encuesta) O hash (#encuesta)
+  if (pathname === '/encuesta' || hash === '#encuesta' || hash.startsWith('#encuesta?')) {
     console.log('📋 Cargando encuesta pública...');
-    // Cargar encuesta SIN autenticación
+    console.log('  pathname:', pathname);
+    console.log('  hash:', hash);
+    
+    // Renderizar HTML de la encuesta
+    app.innerHTML = renderPublicSurvey();
+    
+    // Inicializar eventos y lógica
     initPublicSurvey();
+    
     return; // Salir aquí, no ejecutar el resto
   }
 
@@ -41,9 +50,8 @@ async function init() {
   const isTokenValid = isAuthenticated ? await authService.verifyToken() : false;
 
   if (!isAuthenticated || !isTokenValid) {
-    // Si no está autenticado, mostrar login
     if (isAuthenticated && !isTokenValid) {
-      authService.logout(); // Limpiar sesión inválida
+      authService.logout();
     }
     app.innerHTML = renderLogin();
     initLogin();
@@ -55,12 +63,10 @@ async function init() {
   // ============================================
   await db.init();
   
-  // Renderizar estructura base con navbar
   const user = authService.getUser();
   app.innerHTML = `
     ${renderNavbar()}
     <main class="pt-24 pb-12 px-4 min-h-screen">
-      <!-- Info de usuario -->
       <div class="container mx-auto max-w-7xl mb-4">
         <div class="backdrop-blur-md bg-white/30 rounded-xl p-3 border border-white/40 shadow-lg flex items-center justify-between">
           <div class="flex items-center space-x-3">
@@ -86,7 +92,6 @@ async function init() {
   `;
 
   function showCaseOptions() {
-    // Remover cualquier modal existente primero
     document.getElementById('caseOptionsModal')?.remove();
     
     const modal = document.createElement('div');
@@ -134,9 +139,7 @@ async function init() {
   
     document.body.appendChild(modal);
   
-    // Esperar un momento para que el DOM se actualice
     setTimeout(() => {
-      // Botón Nuevo Cliente
       const newClientBtn = document.getElementById('newClientBtn');
       if (newClientBtn) {
         newClientBtn.onclick = function(e) {
@@ -159,7 +162,6 @@ async function init() {
         };
       }
   
-      // Botón Cliente Existente
       const existingClientBtn = document.getElementById('existingClientBtn');
       if (existingClientBtn) {
         existingClientBtn.onclick = function(e) {
@@ -182,7 +184,6 @@ async function init() {
         };
       }
   
-      // Botón Cancelar
       const cancelBtn = document.getElementById('cancelOptions');
       if (cancelBtn) {
         cancelBtn.onclick = function(e) {
@@ -193,7 +194,6 @@ async function init() {
         };
       }
   
-      // Click en el fondo para cerrar
       modal.onclick = function(e) {
         if (e.target === modal) {
           console.log('✅ Click en fondo');
@@ -203,7 +203,6 @@ async function init() {
     }, 50);
   }
 
-  // Event listener para logout
   document.getElementById('logoutBtn')?.addEventListener('click', () => {
     if (confirm('¿Estás seguro de cerrar sesión?')) {
       authService.logout();
@@ -213,7 +212,6 @@ async function init() {
   initNavbar();
   router.init();
   
-  // Manejar cambios de ruta
   router.onRouteChange(async (route) => {
     const content = document.getElementById('content')!;
     
@@ -223,15 +221,13 @@ async function init() {
         await loadHomeData();
         break;
       
-        case 'casos':
-          content.innerHTML = renderCasesList();
-          await loadCasesList();
+      case 'casos':
+        content.innerHTML = renderCasesList();
+        await loadCasesList();
           
-          // Event listener para botón nuevo caso
-          document.getElementById('btnNewCase')?.addEventListener('click', () => {
-            // Mostrar opciones
-            showCaseOptions();
-          });
+        document.getElementById('btnNewCase')?.addEventListener('click', () => {
+          showCaseOptions();
+        });
         break;
       
       case 'clientes':
@@ -241,7 +237,6 @@ async function init() {
     }
   });
   
-  // Cargar ruta inicial
   const currentRoute = router.getCurrentRoute();
   const content = document.getElementById('content')!;
   
@@ -256,14 +251,5 @@ async function init() {
     await loadClients();
   }
 }
-
-// Manejar errores globales
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('❌ Promise rechazada no manejada:', event.reason);
-});
-
-window.addEventListener('error', (event) => {
-  console.error('❌ Error global:', event.error);
-});
 
 init();
