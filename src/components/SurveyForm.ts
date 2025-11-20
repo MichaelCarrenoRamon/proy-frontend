@@ -1,7 +1,5 @@
-import QRCode from 'qrcode';
 import { SignaturePadComponent } from './SignaturePad';
 import jsPDF from 'jspdf';
-import { API_BASE_URL } from '../config/api';
 import { apiService } from '../services/apiService';
 
 let signaturePad: SignaturePadComponent | null = null;
@@ -191,7 +189,7 @@ export function showSurveyForm(cedula: string, nombre: string) {
         </div>
       </form>
 
-      <!-- Footer con botones (fijo en la parte inferior) -->
+      <!-- Footer con botones -->
       <div class="p-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3 flex-shrink-0 bg-white rounded-b-2xl">
         <button 
           type="button"
@@ -213,12 +211,10 @@ export function showSurveyForm(cedula: string, nombre: string) {
 
   document.body.appendChild(modal);
 
-  // Inicializar el pad de firma
   setTimeout(() => {
     signaturePad = new SignaturePadComponent('signatureCanvas');
   }, 100);
 
-  // Event listeners
   document.getElementById('closeSurveyForm')?.addEventListener('click', () => {
     modal.remove();
   });
@@ -237,7 +233,6 @@ export function showSurveyForm(cedula: string, nombre: string) {
     await submitSurvey(cedula, nombre, modal);
   });
 
-  // Cerrar al hacer clic en el fondo
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       if (confirm('¿Estás seguro de cancelar la encuesta?')) {
@@ -265,10 +260,8 @@ async function submitSurvey(cedula: string, nombre: string, modal: HTMLElement) 
   submitBtn.textContent = 'Guardando...';
 
   try {
-    // Guardar la firma inmediatamente
     const firmaDataURL = signaturePad.getDataURL();
     
-    // Recopilar datos
     const data = {
       cedula_usuario: cedula,
       medio_conocimiento: (document.querySelector('input[name="medio"]:checked') as HTMLInputElement).value,
@@ -281,76 +274,100 @@ async function submitSurvey(cedula: string, nombre: string, modal: HTMLElement) 
       firma: firmaDataURL
     };
 
-    console.log('📝 Enviando encuesta:', {
-      ...data,
-      firma: data.firma ? 'Firma presente ✓' : 'Firma ausente ✗'
-    });
-
-    // Guardar en el backend usando apiService
-    await apiService.post('/api/encuestas', data);
-
+    // Guardar encuesta (sin firma en BD)
+    const dataParaBD = { ...data };
+    //delete dataParaBD.firma;
+    
+    await apiService.post('/api/encuestas', dataParaBD);
     console.log('✅ Encuesta guardada');
 
-    // Generar PDF ANTES de cambiar el modal
-    await generatePDF(cedula, nombre, data);
+    // Generar PDF CON firma (solo se descarga localmente)
+    await generateCompletePDF(cedula, nombre, data);
 
-    // Mostrar mensaje de éxito
     await showSuccessWithQR(cedula, nombre, modal);
 
   } catch (error: any) {
-    console.error('❌ Error al guardar encuesta:', error);
+    console.error('❌ Error:', error);
     alert(error.message || 'Error al guardar la encuesta');
     submitBtn.disabled = false;
     submitBtn.textContent = '✓ Enviar Encuesta';
   }
 }
 
-async function generatePDF(cedula: string, nombre: string, data: any) {
+// Función auxiliar para traducir medio de conocimiento
+function translateMedio(medio: string): string {
+  const traduccion: { [key: string]: string } = {
+    'amigo': 'AMIGO',
+    'familiar': 'FAMILIAR',
+    'periodico': 'PERIÓDICO',
+    'radio': 'RADIO',
+    'pagina_web': 'PAG. WEB',
+    'redes_sociales': 'REDES SOCIALES'
+  };
+  return traduccion[medio] || medio.toUpperCase();
+}
+
+// Función auxiliar para formatear fechas
+function formatDateForPDF(dateString: string): string {
+  if (!dateString) return '';
   try {
-    console.log('📄 Generando PDF completo...');
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-EC');
+  } catch {
+    return '';
+  }
+}
+
+async function generateCompletePDF(cedula: string, nombre: string, surveyData: any) {
+  try {
+    console.log('📄 Generando PDF con formato de casilleros...');
     
     // Obtener datos completos del caso
-    let caseData = null;
+    let caseData: any = null;
     try {
       caseData = await apiService.get(`/api/cases/${cedula}`);
     } catch (error) {
-      console.log('⚠️ No se encontraron datos del caso');
+      console.log('⚠️ No se pudieron obtener datos del caso');
     }
-    
-    // Crear PDF
+
+    // Obtener ficha socioeconómica
+    let fichaData: any = null;
+    try {
+      fichaData = await apiService.get(`/api/cases/${cedula}/ficha`);
+    } catch (error) {
+      console.log('⚠️ No hay ficha socioeconómica');
+    }
+
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 15;
-    let yPos = 15;
+    const margin = 10;
+    let yPos = 8;
 
     // ============ HEADER ============
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
     pdf.text('UNIVERSIDAD TÉCNICA DE MACHALA', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
+    yPos += 5;
     
     pdf.setFontSize(11);
     pdf.text('FACULTAD DE CIENCIAS SOCIALES', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 5;
+    yPos += 4.5;
     pdf.text('CARRERA DE DERECHO', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 5;
+    yPos += 4.5;
     pdf.text('CONSULTORIO JURÍDICO GRATUITO UTMACH', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
+    yPos += 6;
     
-    pdf.setFontSize(10);
+    pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('ENCUESTA DE SATISFACCIÓN', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
+    pdf.text('FORMULARIO DE ASESORÍA INICIAL / SOCIOECONÓMICA', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 6;
 
-    // ============ TABLA PRINCIPAL ============
+    // ============ FUNCIONES HELPER ============
     const tableWidth = pageWidth - (margin * 2);
     const col1Width = tableWidth * 0.5;
     const col2Width = tableWidth * 0.5;
 
-    // Función helper para crear fila con 2 columnas
     const addRow = (label1: string, value1: string, label2: string, value2: string, height: number = 6) => {
-      // Columna 1
       pdf.rect(margin, yPos, col1Width, height);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(7);
@@ -358,7 +375,6 @@ async function generatePDF(cedula: string, nombre: string, data: any) {
       pdf.setFont('helvetica', 'normal');
       pdf.text(value1, margin + 35, yPos + 4);
       
-      // Columna 2
       pdf.rect(margin + col1Width, yPos, col2Width, height);
       pdf.setFont('helvetica', 'bold');
       pdf.text(label2, margin + col1Width + 1, yPos + 4);
@@ -368,7 +384,6 @@ async function generatePDF(cedula: string, nombre: string, data: any) {
       yPos += height;
     };
 
-    // Función helper para crear fila de una sola columna
     const addFullRow = (label: string, value: string, height: number = 6) => {
       pdf.rect(margin, yPos, tableWidth, height);
       pdf.setFont('helvetica', 'bold');
@@ -379,7 +394,6 @@ async function generatePDF(cedula: string, nombre: string, data: any) {
       yPos += height;
     };
 
-    // Función para crear header de sección
     const addSectionHeader = (title: string) => {
       pdf.setFillColor(200, 200, 200);
       pdf.rect(margin, yPos, tableWidth, 5, 'F');
@@ -390,183 +404,199 @@ async function generatePDF(cedula: string, nombre: string, data: any) {
     };
 
     // ============ DATOS DEL USUARIO ============
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('DATOS DEL USUARIO', margin, yPos);
-    yPos += 6;
-    
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Nombre: ${nombre}`, margin, yPos);
-    yPos += 5;
-    pdf.text(`Cédula: ${cedula}`, margin, yPos);
-    yPos += 5;
-    
-    const fecha = new Date().toLocaleDateString('es-EC');
-    pdf.text(`Fecha: ${fecha}`, margin, yPos);
-    yPos += 10;
-
-    // ============ DATOS DEL CASO (si existen) ============
     if (caseData) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('INFORMACIÓN DEL CASO', margin, yPos);
-      yPos += 6;
-      
-      pdf.setFont('helvetica', 'normal');
-      
-      if (caseData.tipo_caso) {
-        pdf.text(`Tipo de caso: ${caseData.tipo_caso}`, margin, yPos);
-        yPos += 5;
-      }
-      
-      if (caseData.estado) {
-        pdf.text(`Estado: ${caseData.estado}`, margin, yPos);
-        yPos += 5;
-      }
-      
-      if (caseData.fecha_registro) {
-        const fechaRegistro = new Date(caseData.fecha_registro).toLocaleDateString('es-EC');
-        pdf.text(`Fecha de registro: ${fechaRegistro}`, margin, yPos);
-        yPos += 5;
-      }
-      
-      yPos += 5;
+      addRow(
+        'ASESOR LEGAL:', 
+        caseData.asesor_legal || 'LEONARDO FALCONI ROMERO',
+        'FECHA ASESORÍA:', 
+        formatDateForPDF(caseData.fecha) || ''
+      );
+
+      addRow(
+        'ESTUDIANTE:', 
+        caseData.estudiante_asignado || '',
+        'CÉDULA USUARIO:', 
+        cedula || ''
+      );
+
+      addRow(
+        'NOMBRE USUARIO:', 
+        (nombre || '').substring(0, 30),
+        'FECHA NACIMIENTO:', 
+        formatDateForPDF(caseData.fecha_de_nacimiento) || ''
+      );
+
+      addRow(
+        'OCUPACIÓN:', 
+        caseData.ocupacion || '',
+        'Email:', 
+        (caseData.email || '').substring(0, 30)
+      );
+
+      addRow(
+        'DIRECCIÓN:', 
+        (caseData.direccion || '').substring(0, 30),
+        'Teléfono 1:', 
+        caseData.telefono || ''
+      );
+    } else {
+      // Si no hay datos del caso, mostrar info básica
+      addRow('NOMBRE:', nombre, 'CÉDULA:', cedula);
+      addRow('FECHA:', formatDateForPDF(new Date().toISOString()), '', '');
     }
 
-    // ============ RESPUESTAS DE LA ENCUESTA ============
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('RESPUESTAS DE LA ENCUESTA', margin, yPos);
-    yPos += 8;
+    // ============ ENCUESTA DE SATISFACCIÓN ============
+    yPos += 1;
+    addSectionHeader('ENCUESTA DE SATISFACCIÓN');
     
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.rect(margin, yPos, tableWidth, 4);
+    pdf.text('FORMULARIO DE EVALUACIÓN A LA SATISFACCIÓN DEL USUARIO', margin + 1, yPos + 2.5);
+    yPos += 4;
 
     // Pregunta 1
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('1. ¿Cómo se enteró de los servicios del Consultorio Jurídico?', margin, yPos);
-    yPos += 5;
+    pdf.rect(margin, yPos, tableWidth, 4);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`   Respuesta: ${data.medio_conocimiento}`, margin, yPos);
-    yPos += 5;
-    
-    if (data.telefono_referido) {
-      pdf.text(`   Teléfono del referido: ${data.telefono_referido}`, margin, yPos);
-      yPos += 5;
+    pdf.setFontSize(6.5);
+    pdf.text('1. ¿Cómo se enteró de los servicios del Consultorio Jurídico Gratuito?', margin + 1, yPos + 2.5);
+    yPos += 4;
+
+    const medioWidth = tableWidth / 6;
+    const medios = ['AMIGO', 'FAMILIAR', 'PERIÓDICO', 'RADIO', 'PAG. WEB', 'REDES SOCIALES'];
+    const medioSeleccionado = translateMedio(surveyData.medio_conocimiento);
+
+    medios.forEach((medio, i) => {
+      pdf.rect(margin + (medioWidth * i), yPos, medioWidth, 3.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(6);
+      pdf.text(medio, margin + (medioWidth * i) + medioWidth/2, yPos + 2, { align: 'center' });
+      
+      if (medioSeleccionado === medio) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('X', margin + (medioWidth * i) + medioWidth/2, yPos + 2.5, { align: 'center' });
+        pdf.setFont('helvetica', 'normal');
+      }
+    });
+    yPos += 3.5;
+
+    // Teléfono Referido
+    if (surveyData.telefono_referido) {
+      pdf.rect(margin, yPos, tableWidth, 3.5);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(6.5);
+      pdf.text('TELF. REFERIDO:', margin + 1, yPos + 2);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(surveyData.telefono_referido, margin + 25, yPos + 2);
+      yPos += 3.5;
+    }
+
+    // Función para preguntas con opciones
+    const addQuestion = (question: string, selected: string) => {
+      pdf.rect(margin, yPos, tableWidth, 3.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(6.5);
+      pdf.text(question, margin + 1, yPos + 2);
+      yPos += 3.5;
+
+      const optWidth = tableWidth / 3;
+      const opciones = ['EXCELENTE', 'BUENA', 'DEFICIENTE'];
+      
+      opciones.forEach((opc, i) => {
+        pdf.rect(margin + (optWidth * i), yPos, optWidth, 3);
+        pdf.text(opc + ':', margin + (optWidth * i) + 2, yPos + 2);
+        
+        if (selected.toUpperCase() === opc) {
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('X', margin + (optWidth * i) + optWidth - 5, yPos + 2);
+          pdf.setFont('helvetica', 'normal');
+        }
+      });
+      yPos += 3;
+    };
+
+    addQuestion('2. ¿La información recibida en la asesoría inicial fue?', surveyData.informacion_recibida);
+    addQuestion('3. ¿La orientación brindada por el asesor legal y estudiante fue?', surveyData.orientacion_brindada);
+    addQuestion('4. ¿Su nivel de satisfacción con la asesoría recibida fue?', surveyData.nivel_satisfaccion);
+
+    // Pregunta 5
+    pdf.rect(margin, yPos, tableWidth, 3.5);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(6.5);
+    pdf.text('5. ¿Volvería a utilizar los servicios del Consultorio Jurídico?', margin + 1, yPos + 2);
+    yPos += 3.5;
+
+    const sinoWidth = tableWidth / 2;
+    pdf.rect(margin, yPos, sinoWidth, 3);
+    pdf.text('SI:', margin + 2, yPos + 2);
+    if (surveyData.volveria_usar) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('X', margin + sinoWidth - 5, yPos + 2);
+      pdf.setFont('helvetica', 'normal');
+    }
+
+    pdf.rect(margin + sinoWidth, yPos, sinoWidth, 3);
+    pdf.text('NO:', margin + sinoWidth + 2, yPos + 2);
+    if (!surveyData.volveria_usar) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('X', margin + tableWidth - 5, yPos + 2);
+      pdf.setFont('helvetica', 'normal');
     }
     yPos += 3;
 
-    // Pregunta 2
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('2. ¿La información recibida en la asesoría inicial fue?', margin, yPos);
-    yPos += 5;
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`   Respuesta: ${data.informacion_recibida}`, margin, yPos);
-    yPos += 8;
-
-    // Pregunta 3
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('3. ¿La orientación brindada por el asesor legal y el estudiante fue?', margin, yPos);
-    yPos += 5;
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`   Respuesta: ${data.orientacion_brindada}`, margin, yPos);
-    yPos += 8;
-
-    // Pregunta 4
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('4. ¿Su nivel de satisfacción con la asesoría recibida fue?', margin, yPos);
-    yPos += 5;
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`   Respuesta: ${data.nivel_satisfaccion}`, margin, yPos);
-    yPos += 8;
-
-    // Pregunta 5
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('5. ¿Volvería a utilizar los servicios del Consultorio Jurídico?', margin, yPos);
-    yPos += 5;
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`   Respuesta: ${data.volveria_usar ? 'Sí' : 'No'}`, margin, yPos);
-    yPos += 10;
-
-    // ============ COMENTARIOS ============
-    if (data.comentarios) {
-      // Verificar si hay espacio suficiente
-      if (yPos + 20 > pageHeight - margin) {
-        pdf.addPage();
-        yPos = margin;
-      }
-      
+    // Comentarios
+    if (surveyData.comentarios) {
+      yPos += 1;
+      pdf.rect(margin, yPos, tableWidth, 15);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('COMENTARIOS ADICIONALES:', margin, yPos);
-      yPos += 5;
-      
+      pdf.setFontSize(7);
+      pdf.text('COMENTARIOS:', margin + 1, yPos + 3);
       pdf.setFont('helvetica', 'normal');
-      const comentarioLines = pdf.splitTextToSize(data.comentarios, pageWidth - 2 * margin);
-      pdf.text(comentarioLines, margin, yPos);
-      yPos += (comentarioLines.length * 5) + 10;
+      pdf.setFontSize(6.5);
+      const comentarios = pdf.splitTextToSize(surveyData.comentarios, tableWidth - 4);
+      pdf.text(comentarios, margin + 2, yPos + 6);
+      yPos += 15;
     }
 
     // ============ FIRMA ============
-    // Verificar si hay espacio suficiente para la firma
-    if (yPos + 40 > pageHeight - margin) {
-      pdf.addPage();
-      yPos = margin;
-    }
-
-    yPos += 5;
+    yPos += 2;
+    pdf.rect(margin, yPos, tableWidth, 25);
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    pdf.text('FIRMA DEL USUARIO:', margin, yPos);
-    yPos += 10;
+    pdf.setFontSize(8);
+    pdf.text('FIRMA DEL USUARIO', pageWidth / 2, yPos + 3, { align: 'center' });
 
-    // Agregar firma si existe (CENTRADA)
-    if (data.firma) {
+    if (surveyData.firma) {
       try {
-        const firmaWidth = 60;
-        const firmaHeight = 20;
+        const firmaWidth = 50;
+        const firmaHeight = 15;
         const firmaX = (pageWidth - firmaWidth) / 2;
+        const firmaY = yPos + 5;
         
-        pdf.addImage(data.firma, 'PNG', firmaX, yPos, firmaWidth, firmaHeight);
-        yPos += firmaHeight + 5;
-        
+        pdf.addImage(surveyData.firma, 'PNG', firmaX, firmaY, firmaWidth, firmaHeight);
         console.log('✅ Firma agregada al PDF');
       } catch (error) {
-        console.error('❌ Error al agregar firma al PDF:', error);
-        
-        // Si falla la firma, agregar línea para firmar manualmente
-        const lineWidth = 60;
-        const lineX = (pageWidth - lineWidth) / 2;
-        yPos += 15;
-        pdf.line(lineX, yPos, lineX + lineWidth, yPos);
-        yPos += 5;
+        console.error('❌ Error al agregar firma:', error);
       }
-    } else {
-      // Línea para firma manual
-      const lineWidth = 60;
-      const lineX = (pageWidth - lineWidth) / 2;
-      yPos += 15;
-      pdf.line(lineX, yPos, lineX + lineWidth, yPos);
-      yPos += 5;
     }
+
+    // Línea de firma
+    const lineWidth = 60;
+    const lineX = (pageWidth - lineWidth) / 2;
+    pdf.line(lineX, yPos + 22, lineX + lineWidth, yPos + 22);
     
-    // Nombre y cédula debajo de la firma
+    pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    pdf.text(nombre, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4;
-    pdf.text(`CI: ${cedula}`, pageWidth / 2, yPos, { align: 'center' });
+    pdf.text(nombre, pageWidth / 2, yPos + 24, { align: 'center' });
 
-    // ============ PIE DE PÁGINA ============
-    yPos = pageHeight - 15;
-    pdf.setFontSize(8);
-    pdf.setTextColor(100);
-    pdf.text('Universidad Técnica de Machala - Consultorio Jurídico Gratuito', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4;
-    pdf.text(`Generado el ${fecha}`, pageWidth / 2, yPos, { align: 'center' });
+    // Footer
+    pdf.setFontSize(6);
+    pdf.text(`Fecha: ${new Date().toLocaleDateString('es-EC')}`, pageWidth / 2, yPos + 27, { align: 'center' });
 
-    // ============ GUARDAR PDF ============
-    const pdfName = `Encuesta_${cedula}_${Date.now()}.pdf`;
+    // Guardar
+    const pdfName = `Formulario_${cedula}_${Date.now()}.pdf`;
     pdf.save(pdfName);
 
-    console.log('✅ PDF generado exitosamente:', pdfName);
+    console.log('✅ PDF generado con formato completo:', pdfName);
     return pdfName;
 
   } catch (error) {
@@ -575,7 +605,7 @@ async function generatePDF(cedula: string, nombre: string, data: any) {
   }
 }
 
-export async function showSuccessWithQR(cedula: string, nombre: string, modal: HTMLElement) {
+async function showSuccessWithQR(cedula: string, nombre: string, modal: HTMLElement) {
   modal.innerHTML = `
     <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl">
       <div class="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-8 rounded-t-2xl text-center">
@@ -591,6 +621,9 @@ export async function showSuccessWithQR(cedula: string, nombre: string, modal: H
           </p>
           <p class="text-gray-600 text-sm">
             Su opinión es muy importante para nosotros
+          </p>
+          <p class="text-gray-500 text-xs mt-2">
+            El formulario ha sido descargado automáticamente
           </p>
         </div>
 
