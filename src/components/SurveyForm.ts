@@ -322,280 +322,403 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
 
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 10;
-    let yPos = 8;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentWidth = pageWidth - (margin * 2);
+    let yPos = 15;
 
     // ============ HEADER ============
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
     pdf.text('UNIVERSIDAD TÉCNICA DE MACHALA', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 5;
+    yPos += 6;
     
     pdf.setFontSize(11);
     pdf.text('FACULTAD DE CIENCIAS SOCIALES', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4.5;
+    yPos += 5;
     pdf.text('CARRERA DE DERECHO', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4.5;
+    yPos += 5;
     pdf.text('CONSULTORIO JURÍDICO GRATUITO UTMACH', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
+    yPos += 7;
     
-    pdf.setFontSize(9);
+    pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
     pdf.text('FORMULARIO DE ASESORÍA INICIAL / SOCIOECONÓMICA', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
+    yPos += 10;
 
-    // ============ FUNCIONES HELPER ============
-    const tableWidth = pageWidth - (margin * 2);
-    const col1Width = tableWidth * 0.5;
-    const col2Width = tableWidth * 0.5;
+    // ============ SECCIÓN: DATOS DEL USUARIO ============
+    pdf.setFillColor(230, 230, 230);
+    pdf.rect(margin, yPos, contentWidth, 6, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.text('DATOS DEL USUARIO', margin + 2, yPos + 4);
+    yPos += 6;
 
-    const addRow = (label1: string, value1: string, label2: string, value2: string, height: number = 6) => {
+    // Función para agregar fila de 2 columnas
+    const addDoubleRow = (label1: string, value1: string, label2: string, value2: string, rowHeight: number = 7) => {
+      const col1Width = contentWidth / 2;
+      const col2Width = contentWidth / 2;
+      
       // Columna 1
-      pdf.rect(margin, yPos, col1Width, height);
+      pdf.rect(margin, yPos, col1Width, rowHeight);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
-      pdf.text(label1, margin + 2, yPos + 4);
+      pdf.text(label1, margin + 2, yPos + 4.5);
+      
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-      pdf.text(value1, margin + 40, yPos + 4);
+      const value1Text = value1 || '';
+      pdf.text(value1Text, margin + 45, yPos + 4.5);
       
       // Columna 2
-      pdf.rect(margin + col1Width, yPos, col2Width, height);
+      pdf.rect(margin + col1Width, yPos, col2Width, rowHeight);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
-      pdf.text(label2, margin + col1Width + 2, yPos + 4);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-      pdf.text(value2, margin + col1Width + 40, yPos + 4);
+      pdf.text(label2, margin + col1Width + 2, yPos + 4.5);
       
-      yPos += height;
+      pdf.setFont('helvetica', 'normal');
+      const value2Text = value2 || '';
+      pdf.text(value2Text, margin + col1Width + 45, yPos + 4.5);
+      
+      yPos += rowHeight;
     };
 
-    const addSectionHeader = (title: string) => {
-      pdf.setFillColor(220, 220, 220);
-      pdf.rect(margin, yPos, tableWidth, 6, 'F');
+    // Función para agregar fila de 1 columna completa
+    const addSingleRow = (label: string, value: string, rowHeight: number = 7) => {
+      pdf.rect(margin, yPos, contentWidth, rowHeight);
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(9);
-      pdf.text(title, margin + 2, yPos + 4);
-      yPos += 6;
+      pdf.setFontSize(8);
+      pdf.text(label, margin + 2, yPos + 4.5);
+      
+      pdf.setFont('helvetica', 'normal');
+      const valueText = value || '';
+      pdf.text(valueText, margin + 45, yPos + 4.5);
+      
+      yPos += rowHeight;
     };
 
-    // ============ DATOS DEL USUARIO ============
+    // Llenar datos del usuario
     if (caseData) {
-      addRow(
-        'ASESOR LEGAL:', 
+      addDoubleRow(
+        'ASESOR LEGAL:',
         caseData.asesor_legal || 'Leonardo Falconi Romero',
-        'FECHA ASESORÍA:', 
-        formatDateForPDF(caseData.fecha) || ''
+        'FECHA ASESORÍA:',
+        formatDateForPDF(caseData.fecha)
       );
 
-      addRow(
-        'ESTUDIANTE:', 
+      addDoubleRow(
+        'ESTUDIANTE:',
         caseData.estudiante_asignado || '',
-        'CÉDULA USUARIO:', 
-        cedula || ''
+        'CÉDULA USUARIO:',
+        cedula
       );
 
-      addRow(
-        'NOMBRE USUARIO:', 
-        (nombre || '').substring(0, 35),
-        'FECHA NACIMIENTO:', 
-        formatDateForPDF(caseData.fecha_de_nacimiento) || ''
+      addDoubleRow(
+        'NOMBRE USUARIO:',
+        (nombre || '').substring(0, 40),
+        'FECHA NACIMIENTO:',
+        formatDateForPDF(caseData.fecha_de_nacimiento)
       );
 
-      addRow(
-        'OCUPACIÓN:', 
+      addDoubleRow(
+        'OCUPACIÓN:',
         caseData.ocupacion || '',
-        'Email:', 
-        (caseData.email || '').substring(0, 25)
+        'Email:',
+        (caseData.email || '').substring(0, 30)
       );
 
-      addRow(
-        'DIRECCIÓN:', 
-        (caseData.direccion || '').substring(0, 25),
-        'Teléfono 1:', 
+      addDoubleRow(
+        'DIRECCIÓN:',
+        (caseData.direccion || '').substring(0, 35),
+        'Teléfono 1:',
         caseData.telefono || ''
       );
+
+      addDoubleRow(
+        'Teléfono Fijo:',
+        caseData.telefono_fijo || '',
+        'Instrucción:',
+        caseData.instruccion || ''
+      );
+
+      addDoubleRow(
+        'Etnia:',
+        caseData.etnia || '',
+        'Género:',
+        caseData.genero || ''
+      );
+
+      addDoubleRow(
+        'ESTADO CIVIL:',
+        caseData.estado_civil || '',
+        'NRO. DE HIJOS:',
+        caseData.numero_hijos?.toString() || '0'
+      );
+
+      addDoubleRow(
+        'DISCAPACIDAD:',
+        caseData.discapacidad ? 'SÍ' : 'NO',
+        'TIPO DE USUARIO:',
+        caseData.tipo_usuario || ''
+      );
     } else {
-      // Si no hay datos del caso, mostrar info básica
-      addRow('ASESOR LEGAL:', 'Leonardo Falconi Romero', 'FECHA ASESORÍA:', formatDateForPDF(new Date().toISOString()));
-      addRow('ESTUDIANTE:', '', 'CÉDULA USUARIO:', cedula);
-      addRow('NOMBRE USUARIO:', nombre, 'FECHA NACIMIENTO:', '');
-      addRow('OCUPACIÓN:', '', 'Email:', '');
-      addRow('DIRECCIÓN:', '', 'Teléfono 1:', '');
+      // Datos básicos si no hay información del caso
+      addDoubleRow('ASESOR LEGAL:', 'Leonardo Falconi Romero', 'FECHA ASESORÍA:', formatDateForPDF(new Date().toISOString()));
+      addDoubleRow('ESTUDIANTE:', '', 'CÉDULA USUARIO:', cedula);
+      addDoubleRow('NOMBRE USUARIO:', nombre, 'FECHA NACIMIENTO:', '');
+      addDoubleRow('OCUPACIÓN:', '', 'Email:', '');
+      addDoubleRow('DIRECCIÓN:', '', 'Teléfono 1:', '');
+      addDoubleRow('Teléfono Fijo:', '', 'Instrucción:', '');
+      addDoubleRow('Etnia:', '', 'Género:', '');
+      addDoubleRow('ESTADO CIVIL:', '', 'NRO. DE HIJOS:', '0');
+      addDoubleRow('DISCAPACIDAD:', 'NO', 'TIPO DE USUARIO:', '');
     }
 
-    // ============ ENCUESTA DE SATISFACCIÓN ============
-    yPos += 2;
-    addSectionHeader('ENCUESTA DE SATISFACCIÓN');
-    
-    // Subtítulo de evaluación
-    pdf.rect(margin, yPos, tableWidth, 5);
+    // ============ SECCIÓN: SERVICIOS BRINDADOS ============
+    yPos += 3;
+    pdf.setFillColor(230, 230, 230);
+    pdf.rect(margin, yPos, contentWidth, 6, 'F');
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(8);
-    pdf.text('FORMULARIO DE EVALUACIÓN A LA SATISFACCIÓN DEL USUARIO', margin + 2, yPos + 3.5);
-    yPos += 5;
+    pdf.setFontSize(9);
+    pdf.text('SERVICIOS BRINDADOS POR EL CJG-UTMACH', margin + 2, yPos + 4);
+    yPos += 6;
 
-    // Pregunta 1
-    pdf.rect(margin, yPos, tableWidth, 5);
+    if (caseData) {
+      addSingleRow(
+        'LÍNEA DE SERVICIO / MATERIA:',
+        caseData.materia || 'FAMILIA MUJER NIÑEZ Y ADOLESCENCIA'
+      );
+
+      addDoubleRow(
+        'TIPO DE USUARIO:',
+        caseData.tipo_usuario || '',
+        'TEMA:',
+        caseData.tema || ''
+      );
+
+      addSingleRow(
+        'NRO. PROCESO JUDICIAL:',
+        caseData.numero_proceso || ''
+      );
+    } else {
+      addSingleRow('LÍNEA DE SERVICIO / MATERIA:', 'FAMILIA MUJER NIÑEZ Y ADOLESCENCIA');
+      addDoubleRow('TIPO DE USUARIO:', '', 'TEMA:', '');
+      addSingleRow('NRO. PROCESO JUDICIAL:', '');
+    }
+
+    // ============ SECCIÓN: ENCUESTA DE SATISFACCIÓN ============
+    yPos += 3;
+    pdf.setFillColor(230, 230, 230);
+    pdf.rect(margin, yPos, contentWidth, 6, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.text('ENCUESTA DE SATISFACCIÓN', margin + 2, yPos + 4);
+    yPos += 6;
+
+    // Pregunta 1: Medio de conocimiento
+    pdf.rect(margin, yPos, contentWidth, 8);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
-    pdf.text('1. ¿Cómo se enteró de los servicios del Consultorio Jurídico Gratuito?', margin + 2, yPos + 3.5);
-    yPos += 5;
+    pdf.text('1. ¿Cómo se enteró de los servicios del Consultorio Jurídico Gratuito?', margin + 2, yPos + 5);
+    yPos += 8;
 
-    // Opciones pregunta 1
-    const medioWidth = tableWidth / 6;
-    const medios = ['AMIGO', 'FAMILIAR', 'PERIÓDICO', 'RADIO', 'PAG. WEB', 'REDES SOCIALES'];
-    const medioSeleccionado = translateMedio(surveyData.medio_conocimiento);
+    // Opciones de medio (6 columnas)
+    const medioColWidth = contentWidth / 6;
+    const medios = ['AMIGO', 'FAMILIAR', 'PERIÓDICO', 'RADIO', 'PÁGINA WEB', 'REDES SOCIALES'];
+    const medioKeys = ['amigo', 'familiar', 'periodico', 'radio', 'pagina_web', 'redes_sociales'];
+    const medioSeleccionado = surveyData.medio_conocimiento;
 
     medios.forEach((medio, i) => {
-      pdf.rect(margin + (medioWidth * i), yPos, medioWidth, 5);
+      const xPos = margin + (medioColWidth * i);
+      pdf.rect(xPos, yPos, medioColWidth, 6);
+      
+      // Texto centrado
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7);
-      
-      // Centrar el texto en la celda
       const textWidth = pdf.getTextWidth(medio);
-      const centerX = margin + (medioWidth * i) + (medioWidth / 2) - (textWidth / 2);
-      pdf.text(medio, centerX, yPos + 3);
+      const textX = xPos + (medioColWidth - textWidth) / 2;
+      pdf.text(medio, textX, yPos + 4);
       
       // Marcar con X si está seleccionado
-      if (medioSeleccionado === medio) {
+      if (medioSeleccionado === medioKeys[i]) {
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(10);
-        const xWidth = pdf.getTextWidth('X');
-        const xCenterX = margin + (medioWidth * i) + (medioWidth / 2) - (xWidth / 2);
-        pdf.text('X', xCenterX, yPos + 3.5);
-        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        const xMarkWidth = pdf.getTextWidth('X');
+        const xMarkX = xPos + (medioColWidth - xMarkWidth) / 2;
+        pdf.text('X', xMarkX, yPos + 4.5);
       }
     });
-    yPos += 5;
+    yPos += 6;
 
     // Teléfono Referido (si existe)
     if (surveyData.telefono_referido) {
-      pdf.rect(margin, yPos, tableWidth, 4);
+      yPos += 2;
+      pdf.rect(margin, yPos, contentWidth, 6);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
-      pdf.text('TELF. REFERIDO:', margin + 2, yPos + 3);
+      pdf.text('TELF. REFERIDO:', margin + 2, yPos + 4);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(surveyData.telefono_referido, margin + 30, yPos + 3);
-      yPos += 4;
+      pdf.text(surveyData.telefono_referido, margin + 40, yPos + 4);
+      yPos += 6;
     }
 
     // Función para preguntas con opciones Excelente/Buena/Deficiente
-    const addQuestion = (questionNum: string, question: string, selected: string) => {
-      pdf.rect(margin, yPos, tableWidth, 5);
+    const addQualityQuestion = (questionNum: string, questionText: string, selectedValue: string) => {
+      yPos += 2;
+      
+      // Pregunta
+      pdf.rect(margin, yPos, contentWidth, 8);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8);
-      pdf.text(`${questionNum}. ${question}`, margin + 2, yPos + 3.5);
-      yPos += 5;
+      pdf.text(`${questionNum}. ${questionText}`, margin + 2, yPos + 5);
+      yPos += 8;
 
-      const optWidth = tableWidth / 3;
+      // Opciones (3 columnas)
+      const optColWidth = contentWidth / 3;
       const opciones = ['EXCELENTE', 'BUENA', 'DEFICIENTE'];
       
-      opciones.forEach((opc, i) => {
-        pdf.rect(margin + (optWidth * i), yPos, optWidth, 4);
+      opciones.forEach((opcion, i) => {
+        const xPos = margin + (optColWidth * i);
+        pdf.rect(xPos, yPos, optColWidth, 6);
+        
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(8);
-        pdf.text(opc + ':', margin + (optWidth * i) + 2, yPos + 2.8);
+        pdf.text(opcion, xPos + 2, yPos + 4);
         
         // Marcar con X si está seleccionado
-        if (selected.toUpperCase() === opc) {
+        if (selectedValue.toUpperCase() === opcion) {
           pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(10);
-          pdf.text('X', margin + (optWidth * i) + 20, yPos + 2.8);
-          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(12);
+          pdf.text('X', xPos + optColWidth - 10, yPos + 4.5);
         }
       });
-      yPos += 4;
+      yPos += 6;
     };
 
-    addQuestion('2', '¿La información recibida en la asesoría inicial fue?', surveyData.informacion_recibida);
-    addQuestion('3', '¿La orientación brindada por el asesor legal y estudiante fue?', surveyData.orientacion_brindada);
-    addQuestion('4', '¿Su nivel de satisfacción con la asesoría recibida fue?', surveyData.nivel_satisfaccion);
+    addQualityQuestion(
+      '2',
+      '¿La información recibida en la asesoría inicial fue?',
+      surveyData.informacion_recibida
+    );
 
-    // Pregunta 5
-    pdf.rect(margin, yPos, tableWidth, 5);
+    addQualityQuestion(
+      '3',
+      '¿La orientación brindada tanto por el asesor legal y el estudiante fue?',
+      surveyData.orientacion_brindada
+    );
+
+    addQualityQuestion(
+      '4',
+      '¿Su nivel de satisfacción con la asesoría recibida fue?',
+      surveyData.nivel_satisfaccion
+    );
+
+    // Pregunta 5: Volvería a usar
+    yPos += 2;
+    pdf.rect(margin, yPos, contentWidth, 8);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
-    pdf.text('5. ¿Volvería a utilizar los servicios del Consultorio Jurídico?', margin + 2, yPos + 3.5);
-    yPos += 5;
+    pdf.text('5. ¿Volvería a utilizar los servicios del Consultorio Jurídico?', margin + 2, yPos + 5);
+    yPos += 8;
 
-    const sinoWidth = tableWidth / 2;
-    pdf.rect(margin, yPos, sinoWidth, 4);
+    const sinoColWidth = contentWidth / 2;
+    
+    // Opción SI
+    pdf.rect(margin, yPos, sinoColWidth, 6);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
-    pdf.text('SI:', margin + 2, yPos + 2.8);
-    if (surveyData.volveria_usar) {
+    pdf.text('SI', margin + 2, yPos + 4);
+    if (surveyData.volveria_usar === true) {
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.text('X', margin + 10, yPos + 2.8);
-      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      pdf.text('X', margin + sinoColWidth - 10, yPos + 4.5);
     }
 
-    pdf.rect(margin + sinoWidth, yPos, sinoWidth, 4);
+    // Opción NO
+    pdf.rect(margin + sinoColWidth, yPos, sinoColWidth, 6);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
-    pdf.text('NO:', margin + sinoWidth + 2, yPos + 2.8);
-    if (!surveyData.volveria_usar) {
+    pdf.text('NO', margin + sinoColWidth + 2, yPos + 4);
+    if (surveyData.volveria_usar === false) {
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.text('X', margin + sinoWidth + 12, yPos + 2.8);
-      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      pdf.text('X', margin + contentWidth - 10, yPos + 4.5);
     }
-    yPos += 4;
+    yPos += 6;
 
     // Comentarios (si existen)
-    if (surveyData.comentarios) {
-      yPos += 2;
-      pdf.rect(margin, yPos, tableWidth, 18);
+    if (surveyData.comentarios && surveyData.comentarios.trim()) {
+      yPos += 3;
+      const comentariosHeight = 20;
+      pdf.rect(margin, yPos, contentWidth, comentariosHeight);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
       pdf.text('COMENTARIOS:', margin + 2, yPos + 4);
+      
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7);
-      const comentarios = pdf.splitTextToSize(surveyData.comentarios, tableWidth - 6);
-      pdf.text(comentarios, margin + 3, yPos + 8);
-      yPos += 18;
+      const comentariosLines = pdf.splitTextToSize(surveyData.comentarios, contentWidth - 6);
+      pdf.text(comentariosLines, margin + 3, yPos + 8);
+      yPos += comentariosHeight;
     }
 
     // ============ FIRMA ============
-    yPos += 3;
-    pdf.rect(margin, yPos, tableWidth, 28);
+    yPos += 5;
+    
+    // Verificar si hay espacio suficiente, si no, crear nueva página
+    if (yPos + 40 > pageHeight - margin) {
+      pdf.addPage();
+      yPos = margin;
+    }
+
+    const firmaHeight = 35;
+    pdf.rect(margin, yPos, contentWidth, firmaHeight);
+    
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
-    pdf.text('FIRMA DEL USUARIO', pageWidth / 2, yPos + 4, { align: 'center' });
+    pdf.text('FIRMA DEL USUARIO:', pageWidth / 2, yPos + 5, { align: 'center' });
 
-    // Agregar imagen de firma si existe
+    // Agregar imagen de firma
     if (surveyData.firma) {
       try {
-        const firmaWidth = 50;
-        const firmaHeight = 15;
+        const firmaWidth = 60;
+        const firmaImgHeight = 18;
         const firmaX = (pageWidth - firmaWidth) / 2;
-        const firmaY = yPos + 6;
+        const firmaY = yPos + 8;
         
-        pdf.addImage(surveyData.firma, 'PNG', firmaX, firmaY, firmaWidth, firmaHeight);
-        console.log('✅ Firma agregada al PDF');
+        pdf.addImage(surveyData.firma, 'PNG', firmaX, firmaY, firmaWidth, firmaImgHeight);
       } catch (error) {
         console.error('❌ Error al agregar firma:', error);
       }
     }
 
-    // Línea de firma y nombre
-    const lineWidth = 60;
+    // Línea de firma
+    const lineWidth = 70;
     const lineX = (pageWidth - lineWidth) / 2;
+    const lineY = yPos + 27;
     pdf.setLineWidth(0.3);
-    pdf.line(lineX, yPos + 23, lineX + lineWidth, yPos + 23);
+    pdf.line(lineX, lineY, lineX + lineWidth, lineY);
     
-    pdf.setFontSize(8);
+    // Nombre del usuario
     pdf.setFont('helvetica', 'normal');
-    pdf.text(nombre, pageWidth / 2, yPos + 26, { align: 'center' });
-
-    // Footer con fecha
+    pdf.setFontSize(8);
+    pdf.text(nombre, pageWidth / 2, lineY + 4, { align: 'center' });
+    
+    // Cédula
     pdf.setFontSize(7);
-    pdf.text(`Fecha: ${new Date().toLocaleDateString('es-EC')}`, pageWidth / 2, yPos + 29, { align: 'center' });
+    pdf.text(`CI: ${cedula}`, pageWidth / 2, lineY + 8, { align: 'center' });
+
+    // Footer con fecha de generación
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'italic');
+    pdf.text(
+      `Fecha de generación: ${new Date().toLocaleDateString('es-EC')}`,
+      pageWidth / 2,
+      pageHeight - 10,
+      { align: 'center' }
+    );
 
     // Guardar PDF
-    const pdfName = `Formulario_${cedula}_${Date.now()}.pdf`;
+    const pdfName = `Encuesta_${cedula}_${Date.now()}.pdf`;
     pdf.save(pdfName);
 
     console.log('✅ PDF generado exitosamente:', pdfName);
@@ -610,8 +733,15 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
 // Función helper para formatear fechas
 function formatDateForPDF(dateString: string): string {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+  try {
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    return '';
+  }
 }
 
 async function showSuccessWithQR(cedula: string, nombre: string, modal: HTMLElement) {
