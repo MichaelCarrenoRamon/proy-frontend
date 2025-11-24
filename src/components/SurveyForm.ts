@@ -497,7 +497,7 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
 
       addSingleRow(
         'NRO. PROCESO JUDICIAL:',
-        caseData.numero_proceso || caseData.nro_proceso_judicial ||''
+        caseData.numero_proceso_judicial || caseData.numero_proceso || caseData.nro_proceso || caseData.proceso_judicial || ''
       );
     } else {
       addSingleRow('LÍNEA DE SERVICIO / MATERIA:', 'FAMILIA MUJER NIÑEZ Y ADOLESCENCIA');
@@ -667,50 +667,44 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
     }
 
     // ============ FIRMA ============
-    yPos += 5;
+    yPos += 3; // Reducido de 5 a 3
     
-    // Verificar si hay espacio suficiente, si no, crear nueva página
-    if (yPos + 40 > pageHeight - margin) {
-      pdf.addPage();
-      yPos = margin;
-    }
-
-    const firmaHeight = 35;
+    const firmaHeight = 32; // Reducido de 35 a 32
     pdf.rect(margin, yPos, contentWidth, firmaHeight);
     
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
-    pdf.text('FIRMA DEL USUARIO:', pageWidth / 2, yPos + 5, { align: 'center' });
-
+    pdf.text('FIRMA DEL USUARIO:', pageWidth / 2, yPos + 4, { align: 'center' }); // Ajustado
+    
     // Agregar imagen de firma
     if (surveyData.firma) {
       try {
-        const firmaWidth = 60;
-        const firmaImgHeight = 18;
+        const firmaWidth = 55; // Reducido de 60 a 55
+        const firmaImgHeight = 16; // Reducido de 18 a 16
         const firmaX = (pageWidth - firmaWidth) / 2;
-        const firmaY = yPos + 8;
+        const firmaY = yPos + 7; // Ajustado de 8 a 7
         
         pdf.addImage(surveyData.firma, 'PNG', firmaX, firmaY, firmaWidth, firmaImgHeight);
       } catch (error) {
         console.error('❌ Error al agregar firma:', error);
       }
     }
-
+    
     // Línea de firma
     const lineWidth = 70;
     const lineX = (pageWidth - lineWidth) / 2;
-    const lineY = yPos + 27;
+    const lineY = yPos + 25; // Ajustado de 27 a 25
     pdf.setLineWidth(0.3);
     pdf.line(lineX, lineY, lineX + lineWidth, lineY);
     
     // Nombre del usuario
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
-    pdf.text(nombre, pageWidth / 2, lineY + 4, { align: 'center' });
+    pdf.text(nombre, pageWidth / 2, lineY + 3.5, { align: 'center' }); // Ajustado
     
     // Cédula
     pdf.setFontSize(7);
-    pdf.text(`CI: ${cedula}`, pageWidth / 2, lineY + 8, { align: 'center' });
+    pdf.text(`CI: ${cedula}`, pageWidth / 2, lineY + 7, { align: 'center' }); // Ajustado
 
     // Footer con fecha de generación
     pdf.setFontSize(7);
