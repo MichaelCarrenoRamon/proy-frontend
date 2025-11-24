@@ -497,7 +497,7 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
 
       addSingleRow(
         'NRO. PROCESO JUDICIAL:',
-        caseData.numero_proceso || ''
+        caseData.numero_proceso || caseData.nro_proceso_judicial ||''
       );
     } else {
       addSingleRow('LÍNEA DE SERVICIO / MATERIA:', 'FAMILIA MUJER NIÑEZ Y ADOLESCENCIA');
@@ -537,17 +537,22 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
       const textWidth = pdf.getTextWidth(medio);
       const textX = xPos + (medioColWidth - textWidth) / 2;
       pdf.text(medio, textX, yPos + 4);
-      
-      // Marcar con X si está seleccionado
-      if (medioSeleccionado === medioKeys[i]) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(12);
-        const xMarkWidth = pdf.getTextWidth('X');
-        const xMarkX = xPos + (medioColWidth - xMarkWidth) / 2;
-        pdf.text('X', xMarkX, yPos + 4.5);
-      }
     });
     yPos += 6;
+      
+    medios.forEach((medio, i) => {
+      const xPos = margin + (medioColWidth * i);
+      pdf.rect(xPos, yPos, medioColWidth, 5);
+
+      if (medioSeleccionado === medioKeys[i]) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        const xMarkWidth = pdf.getTextWidth('X');
+        const xMarkX = xPos + (medioColWidth - xMarkWidth) / 2;
+        pdf.text('X', xMarkX, yPos + 4);
+      }
+    });
+    yPos += 5;
 
     // Teléfono Referido (si existe)
     if (surveyData.telefono_referido) {
