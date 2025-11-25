@@ -9,68 +9,74 @@ import { renderClients, loadClients } from './components/Clients';
 import { renderLogin, initLogin } from './components/Login';
 import { renderResetPassword, initResetPassword } from './components/ResetPassword';
 import { renderPublicSurvey, initPublicSurvey } from './components/PublicSurvey';
+import { toast } from './components/toast';
 
 async function init() {
   const app = document.querySelector<HTMLDivElement>('#app')!;
 
   // ============================================
-  // 1. DETECTAR RUTA PÚBLICA DE ENCUESTA
+  // 1. DETECTAR RUTAS PÚBLICAS (SIN AUTENTICACIÓN)
   // ============================================
-  const fullHash = window.location.hash; // Ej: #encuesta?cedula=123&nombre=Juan
-  const hashRoute = fullHash.split('?')[0]; // Ej: #encuesta
+  const fullHash = window.location.hash;
+  const hashRoute = fullHash.split('?')[0];
   
-  console.log('🔍 Detectando ruta:');
-  console.log('  fullHash:', fullHash);
-  console.log('  hashRoute:', hashRoute);
+  console.log('🔍 Inicializando app - Ruta detectada:', hashRoute);
   
-  // Verificar si es la ruta de encuesta (con o sin parámetros)
+  // RUTA PÚBLICA: Encuesta de Satisfacción
   if (hashRoute === '#encuesta') {
-    console.log('✅ Ruta de encuesta detectada - Cargando sin login');
+    console.log('✅ Ruta pública de encuesta - Cargando sin autenticación');
     
-    // Renderizar HTML de la encuesta
+    // Renderizar encuesta pública
     app.innerHTML = renderPublicSurvey();
-    
-    // Inicializar eventos y lógica
     initPublicSurvey();
     
-    return; // ⚠️ SALIR AQUÍ - No ejecutar código de autenticación
+    // ⚠️ IMPORTANTE: Salir aquí para NO ejecutar código de autenticación
+    return;
   }
 
-  // ============================================
-  // 2. VERIFICAR RECUPERACIÓN DE CONTRASEÑA
-  // ============================================
-  if (fullHash.startsWith('#recovery')) {
+  // RUTA PÚBLICA: Recuperación de Contraseña
+  if (hashRoute === '#recovery' || fullHash.startsWith('#recovery')) {
+    console.log('✅ Ruta de recuperación - Cargando sin autenticación');
     app.innerHTML = renderResetPassword();
     initResetPassword();
     return;
   }
 
   // ============================================
-  // 3. VERIFICAR AUTENTICACIÓN (RUTAS PRIVADAS)
+  // 2. RUTAS PRIVADAS - VERIFICAR AUTENTICACIÓN
   // ============================================
-  console.log('🔐 Verificando autenticación...');
+  console.log('🔐 Verificando autenticación para rutas privadas...');
   
   const isAuthenticated = authService.isAuthenticated();
   const isTokenValid = isAuthenticated ? await authService.verifyToken() : false;
 
   if (!isAuthenticated || !isTokenValid) {
-    console.log('❌ No autenticado - Mostrando login');
+    console.log('❌ No autenticado - Redirigiendo a login');
+    
     if (isAuthenticated && !isTokenValid) {
       authService.logout();
+      toast.error('Sesión expirada. Por favor, inicia sesión nuevamente.');
     }
+    
+    // Si no está en login, redirigir
+    if (hashRoute !== '#login' && hashRoute !== '') {
+      window.location.hash = '#login';
+    }
+    
     app.innerHTML = renderLogin();
     initLogin();
     return;
   }
 
-  console.log('✅ Usuario autenticado - Cargando app');
+  console.log('✅ Usuario autenticado - Cargando aplicación principal');
 
   // ============================================
-  // 4. USUARIO AUTENTICADO - CARGAR APP PRINCIPAL
+  // 3. USUARIO AUTENTICADO - CARGAR APP PRINCIPAL
   // ============================================
   await db.init();
   
   const user = authService.getUser();
+  
   app.innerHTML = `
     ${renderNavbar()}
     <main class="pt-24 pb-12 px-4 min-h-screen">
@@ -98,8 +104,9 @@ async function init() {
     </main>
   `;
 
-  // ... resto del código igual (showCaseOptions, etc)
-  
+  // ============================================
+  // 4. MODAL DE OPCIONES DE CASO
+  // ============================================
   function showCaseOptions() {
     document.getElementById('caseOptionsModal')?.remove();
     
@@ -206,12 +213,31 @@ async function init() {
     }, 50);
   }
 
-  document.getElementById('logoutBtn')?.addEventListener('click', () => {
-    if (confirm('¿Estás seguro de cerrar sesión?')) {
+  // ============================================
+  // 5. LOGOUT
+  // ============================================
+  document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+    const confirmed = await toast.confirm(
+      '¿Estás seguro de cerrar sesión?',
+      'Cerrar Sesión'
+    );
+    
+    if (confirmed) {
+      toast.info('Cerrando sesión...');
       authService.logout();
+      
+      app.innerHTML = '';
+      
+      setTimeout(() => {
+        window.location.hash = '#login';
+        window.location.reload();
+      }, 100);
     }
   });
 
+  // ============================================
+  // 6. INICIALIZAR ROUTER
+  // ============================================
   initNavbar();
   router.init();
   
@@ -240,6 +266,7 @@ async function init() {
     }
   });
   
+  // Cargar ruta inicial
   const currentRoute = router.getCurrentRoute();
   const content = document.getElementById('content')!;
   
@@ -255,4 +282,7 @@ async function init() {
   }
 }
 
+// ============================================
+// INICIALIZAR APLICACIÓN
+// ============================================
 init();

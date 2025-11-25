@@ -497,7 +497,7 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
 
       addSingleRow(
         'NRO. PROCESO JUDICIAL:',
-        caseData.numero_proceso_judicial || caseData.numero_proceso || caseData.nro_proceso || caseData.proceso_judicial || ''
+        caseData.nro_proceso_judicial_expediente || ''
       );
     } else {
       addSingleRow('LÍNEA DE SERVICIO / MATERIA:', 'FAMILIA MUJER NIÑEZ Y ADOLESCENCIA');

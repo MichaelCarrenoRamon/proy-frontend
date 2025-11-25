@@ -1,6 +1,5 @@
 import { SignaturePadComponent } from '../components/SignaturePad';
 import { apiService } from '../services/apiService';
-import jsPDF from 'jspdf';
 
 let signaturePad: SignaturePadComponent | null = null;
 
@@ -279,6 +278,8 @@ export function renderPublicSurvey(): string {
 }
 
 export function initPublicSurvey() {
+  console.log('🎯 Inicializando encuesta pública...');
+  
   const searchBtn = document.getElementById('searchBtn');
   const cedulaInput = document.getElementById('cedulaInput') as HTMLInputElement;
   const searchMessage = document.getElementById('searchMessage');
@@ -290,22 +291,37 @@ export function initPublicSurvey() {
   let currentNombre = '';
   let currentCaseData: any = null;
 
-  // Verificar si viene cédula desde el QR
+  // ============================================
+  // 1. VERIFICAR SI VIENE CÉDULA DESDE QR
+  // ============================================
   const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
   const cedulaFromQR = urlParams.get('cedula');
+  const nombreFromQR = urlParams.get('nombre');
 
   if (cedulaFromQR) {
-    console.log('📱 Cédula desde QR:', cedulaFromQR);
+    console.log('📱 Datos desde QR:', { cedula: cedulaFromQR, nombre: nombreFromQR });
     cedulaInput.value = cedulaFromQR;
-    setTimeout(() => searchBtn?.click(), 500);
+    
+    // Auto-buscar después de un pequeño delay
+    setTimeout(() => {
+      searchBtn?.click();
+    }, 500);
   }
 
-  // Buscar caso por cédula
+  // ============================================
+  // 2. BUSCAR CASO POR CÉDULA
+  // ============================================
   searchBtn?.addEventListener('click', async () => {
     const cedula = cedulaInput.value.trim();
     
-    if (!cedula || cedula.length !== 10) {
-      showMessage('Por favor ingrese una cédula válida de 10 dígitos', 'error');
+    // Validación básica de cédula ecuatoriana
+    if (!cedula) {
+      showMessage('Por favor ingrese su número de cédula', 'error');
+      return;
+    }
+    
+    if (cedula.length !== 10 || !/^\d+$/.test(cedula)) {
+      showMessage('La cédula debe tener 10 dígitos numéricos', 'error');
       return;
     }
 
@@ -313,56 +329,88 @@ export function initPublicSurvey() {
     searchBtn.setAttribute('disabled', 'true');
 
     try {
+      console.log('🔍 Buscando caso para cédula:', cedula);
+      
       const response = await apiService.get(`/api/cases/${cedula}`);
       
       if (!response) {
-        showMessage('No se encontró un caso registrado con esta cédula', 'error');
+        showMessage('No se encontró un caso registrado con esta cédula. Por favor contacte con el consultorio.', 'error');
         return;
       }
 
+      console.log('✅ Caso encontrado:', response);
+
+      // Guardar datos
       currentCedula = cedula;
       currentNombre = response.nombre_completo || response.nombre || 'Usuario';
       currentCaseData = response;
 
+      // Mostrar datos en el formulario
       document.getElementById('userName')!.textContent = currentNombre;
       document.getElementById('userCedula')!.textContent = currentCedula;
       
+      // Ocultar búsqueda y mostrar formulario
       searchSection?.classList.add('hidden');
       surveyForm?.classList.remove('hidden');
       surveyForm?.scrollIntoView({ behavior: 'smooth' });
 
+      // Inicializar firma digital
       setTimeout(() => {
         signaturePad = new SignaturePadComponent('signatureCanvas');
+        console.log('✅ Firma digital inicializada');
       }, 100);
 
     } catch (error: any) {
-      console.error('Error al buscar caso:', error);
-      showMessage(error.message || 'Error al buscar el caso', 'error');
+      console.error('❌ Error al buscar caso:', error);
+      showMessage(error.message || 'Error al buscar el caso. Por favor intente nuevamente.', 'error');
     } finally {
       searchBtn.textContent = 'Buscar';
       searchBtn.removeAttribute('disabled');
     }
   });
 
+  // Permitir buscar con Enter
+  cedulaInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      searchBtn?.click();
+    }
+  });
+
+  // ============================================
+  // 3. LIMPIAR FIRMA
+  // ============================================
   document.getElementById('clearSignature')?.addEventListener('click', () => {
     signaturePad?.clear();
   });
 
+  // ============================================
+  // 4. CANCELAR ENCUESTA
+  // ============================================
   cancelBtn?.addEventListener('click', () => {
     if (confirm('¿Está seguro de cancelar? Perderá todos los datos ingresados.')) {
       window.location.reload();
     }
   });
 
+  // ============================================
+  // 5. ENVIAR ENCUESTA
+  // ============================================
   surveyForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     await submitPublicSurvey(currentCedula, currentNombre, currentCaseData);
   });
 
+  // ============================================
+  // 6. CERRAR MODAL DE ÉXITO
+  // ============================================
   document.getElementById('closeSuccessBtn')?.addEventListener('click', () => {
     window.location.reload();
   });
 
+  // ============================================
+  // FUNCIONES AUXILIARES
+  // ============================================
   function showMessage(message: string, type: 'error' | 'success') {
     if (!searchMessage) return;
     
@@ -371,32 +419,41 @@ export function initPublicSurvey() {
       : 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-xl text-sm';
     searchMessage.textContent = message;
     searchMessage.classList.remove('hidden');
+    
+    // Auto-ocultar después de 5 segundos
+    setTimeout(() => {
+      searchMessage.classList.add('hidden');
+    }, 5000);
   }
 }
 
-// Enviar encuesta SIN guardar firma en BD
+// ============================================
+// FUNCIÓN PARA ENVIAR ENCUESTA
+// ============================================
 async function submitPublicSurvey(cedula: string, nombre: string, caseData: any) {
   const form = document.getElementById('surveyForm') as HTMLFormElement;
   
+  // Validar formulario
   if (!form.checkValidity()) {
     form.reportValidity();
     return;
   }
 
+  // Validar firma
   if (!signaturePad || signaturePad.isEmpty()) {
-    alert('Por favor firme en el recuadro antes de enviar');
+    alert('⚠️ Por favor firme en el recuadro antes de enviar la encuesta');
     return;
   }
 
   const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+  const originalText = submitBtn.textContent;
   submitBtn.disabled = true;
   submitBtn.textContent = 'Guardando...';
 
   try {
-    // Capturar firma (solo para notificación al admin)
-    const firmaDataURL = signaturePad.getDataURL();
-    
-    // Datos a guardar (SIN firma)
+    console.log('📤 Enviando encuesta...');
+
+    // Recopilar datos del formulario
     const data = {
       cedula_usuario: cedula,
       medio_conocimiento: (document.querySelector('input[name="medio"]:checked') as HTMLInputElement).value,
@@ -406,26 +463,28 @@ async function submitPublicSurvey(cedula: string, nombre: string, caseData: any)
       nivel_satisfaccion: (document.querySelector('input[name="satisfaccion"]:checked') as HTMLInputElement).value,
       volveria_usar: (document.querySelector('input[name="volveria"]:checked') as HTMLInputElement).value === 'true',
       comentarios: (document.getElementById('comentarios') as HTMLTextAreaElement).value || null
-      // ❌ NO incluimos 'firma' aquí
+      // ❌ NO incluimos la firma en la base de datos
     };
 
-    console.log('📤 Enviando encuesta (sin firma en BD)...');
+    console.log('📋 Datos a enviar:', data);
 
-    // Guardar en el servidor (sin firma)
+    // Guardar en el servidor (SIN firma)
     await apiService.post('/api/encuestas', data);
 
-    console.log('✅ Encuesta guardada');
-
-    // Notificar al admin que hay nueva encuesta (opcional)
-    // Puedes enviar un webhook, email, o notificación push aquí
+    console.log('✅ Encuesta guardada exitosamente');
 
     // Mostrar modal de éxito
     document.getElementById('successModal')?.classList.remove('hidden');
 
+    // Opcional: Podrías generar un PDF aquí si lo deseas
+    // await generatePDFLocal(cedula, nombre, data, signaturePad.getDataURL());
+
   } catch (error: any) {
-    console.error('❌ Error:', error);
-    alert(error.message || 'Error al enviar la encuesta');
+    console.error('❌ Error al enviar encuesta:', error);
+    alert(`Error: ${error.message || 'No se pudo guardar la encuesta. Por favor intente nuevamente.'}`);
     submitBtn.disabled = false;
-    submitBtn.textContent = '✓ Enviar Encuesta';
+    submitBtn.textContent = originalText || '✓ Enviar Encuesta';
   }
 }
+
+console.log('✅ Módulo PublicSurvey cargado');

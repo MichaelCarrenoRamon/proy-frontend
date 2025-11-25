@@ -118,7 +118,7 @@ async function generateQR(cedula: string, nombre: string, modal: HTMLElement) {
 
     // URL pública de la encuesta (sin autenticación)
     // Ajusta esta URL según tu configuración
-    const surveyURL = `${window.location.origin}/encuesta?cedula=${encodeURIComponent(cedula)}&nombre=${encodeURIComponent(nombre)}`;
+    const surveyURL = `${window.location.origin}/#encuesta?cedula=${encodeURIComponent(cedula)}&nombre=${encodeURIComponent(nombre)}`;
     
     console.log('🔗 URL de encuesta:', surveyURL);
 
@@ -368,7 +368,7 @@ function printQR(cedula: string, nombre: string) {
  */
 async function copyLinkToClipboard(cedula: string, nombre: string) {
   try {
-    const surveyURL = `${window.location.origin}/encuesta?cedula=${encodeURIComponent(cedula)}&nombre=${encodeURIComponent(nombre)}`;
+    const surveyURL = `${window.location.origin}/#encuesta?cedula=${encodeURIComponent(cedula)}&nombre=${encodeURIComponent(nombre)}`;
     
     await navigator.clipboard.writeText(surveyURL);
     
