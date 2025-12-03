@@ -80,10 +80,10 @@ class Database {
     return apiService.get<Activity[]>('/api/activities');
   }
 
-  async updateActivity(activity: Activity): Promise<Activity> {
+  async updateActivity(id: number, updates: Partial<Activity>): Promise<Activity> {
     return apiService.put<Activity>(
-      `/api/activities/${activity.id}`,
-      activity
+      `/api/activities/${id}`,
+      updates
     );
   }
 

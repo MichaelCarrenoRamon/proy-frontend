@@ -7,6 +7,7 @@ export interface Activity {
     tipo: 'personal' | 'cliente';
     completada: boolean;
     cedula_cliente?: string;
+    juez?: string;
     created_at?: string;
     updated_at?: string;
 }

@@ -943,6 +943,7 @@ function showDayActivities(dateStr: string) {
               </div>
               <h6 class="font-semibold text-gray-800">${evento.nombres_y_apellidos_de_usuario}</h6>
               <p class="text-sm text-gray-600">${evento.materia}</p>
+              <p class="text-sm text-gray-600">${evento.juez_fiscal}</p>
               <p class="text-xs text-gray-500 mt-1">Exp: ${evento.nro_proceso_judicial_expediente}</p>
             </div>
             <span class="px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(evento.estado_actual)}">
@@ -986,19 +987,32 @@ function showDayActivities(dateStr: string) {
               </div>
               <div class="flex flex-col items-end space-y-2">
                 <button 
-                  onclick="toggleActivity(${activity.id})" 
-                  class="p-1.5 rounded-lg transition ${activity.completada ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'}"
-                  title="${activity.completada ? 'Marcar como pendiente' : 'Marcar como completada'}"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                </button>
-                <button 
-                  onclick="deleteActivity(${activity.id})" 
-                  class="p-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition"
-                  title="Eliminar actividad"
-                >
+                    onclick="editActivity(${activity.id})" 
+                    class="p-1.5 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition"
+                    title="Editar actividad"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                  </button>
+                  <button 
+                    onclick="toggleActivity(${activity.id})" 
+                    class="p-1.5 rounded-lg transition ${activity.completada ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'}"
+                    title="${activity.completada ? 'Marcar como pendiente' : 'Marcar como completada'}"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </button>
+                  <button 
+                    onclick="deleteActivity(${activity.id})" 
+                    class="p-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition"
+                    title="Eliminar actividad"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                   </svg>
@@ -1074,6 +1088,190 @@ function getStatusColor(estado: string): string {
   } catch (error) {
     console.error('Error al eliminar actividad:', error);
     alert('Error al eliminar la actividad');
+  }
+};
+
+(window as any).editActivity = async (id: number) => {
+  try {
+    const activity = allActivities.find(a => a.id === id);
+    if (!activity) {
+      alert('Actividad no encontrada');
+      return;
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'editActivityModal';
+    modal.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4';
+    
+    const clientInfo = activity.cedula_cliente 
+      ? allCases.find(c => c.nro_de_cedula_usuario === activity.cedula_cliente)
+      : null;
+
+    modal.innerHTML = `
+      <div class="bg-white/90 backdrop-blur-md rounded-2xl p-6 max-w-md w-full shadow-2xl border border-white/40">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold text-gray-800">Editar Actividad</h3>
+          <button id="closeEditModal" class="p-2 hover:bg-gray-200 rounded-lg transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <form id="editActivityForm" class="space-y-4">
+          <!-- Tipo (solo lectura) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Actividad</label>
+            <input 
+              type="text" 
+              value="${activity.tipo === 'personal' ? 'Personal' : 'Vinculada a Cliente'}"
+              disabled
+              class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600"
+            />
+          </div>
+
+          ${activity.tipo === 'cliente' && clientInfo ? `
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Cliente</label>
+              <input 
+                type="text" 
+                value="${clientInfo.nombres_y_apellidos_de_usuario}"
+                disabled
+                class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600"
+              />
+            </div>
+          ` : ''}
+
+          <!-- Título -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+            <input 
+              type="text" 
+              id="editTitle"
+              value="${activity.titulo}"
+              required 
+              class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Fecha y hora -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
+              <input 
+                type="date" 
+                id="editDate" 
+                value="${activity.fecha_actividad}"
+                required 
+                class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hora</label>
+              <input 
+                type="time" 
+                id="editTime"
+                value="${activity.hora_actividad || ''}"
+                class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <!-- Juez (NUEVO) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Juez (opcional)</label>
+            <input 
+              type="text" 
+              id="editJuez"
+              value="${activity.juez || ''}"
+              placeholder="Nombre del juez..."
+              class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+            <p class="text-xs text-gray-500 mt-1">Este campo no se guarda en la base de datos</p>
+          </div>
+
+          <!-- Descripción -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <textarea 
+              id="editDescription" 
+              rows="3" 
+              class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="Detalles adicionales..."
+            >${activity.descripcion || ''}</textarea>
+          </div>
+
+          <div class="flex space-x-3 pt-2">
+            <button 
+              type="submit" 
+              class="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-indigo-600 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+            >
+              Guardar Cambios
+            </button>
+            <button 
+              type="button" 
+              id="cancelEditModal"
+              class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    document.getElementById('closeEditModal')?.addEventListener('click', closeModal);
+    document.getElementById('cancelEditModal')?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    document.getElementById('editActivityForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const updatedActivity = {
+        titulo: (document.getElementById('editTitle') as HTMLInputElement).value,
+        fecha_actividad: (document.getElementById('editDate') as HTMLInputElement).value,
+        hora_actividad: (document.getElementById('editTime') as HTMLInputElement).value || undefined,
+        descripcion: (document.getElementById('editDescription') as HTMLTextAreaElement).value || undefined,
+        juez: (document.getElementById('editJuez') as HTMLInputElement).value || undefined, // ✅ Campo local
+      };
+
+      try {
+        await db.updateActivity(id, updatedActivity);
+        
+        // Actualizar el array local con el juez
+        const activityIndex = allActivities.findIndex(a => a.id === id);
+        if (activityIndex !== -1) {
+          allActivities[activityIndex] = { ...allActivities[activityIndex], ...updatedActivity };
+        }
+        
+        alert('Actividad actualizada exitosamente');
+        closeModal();
+        
+        allActivities = await db.getAllActivities();
+        renderCalendarGrid();
+        setupDayClickEvents();
+        
+        const container = document.getElementById('dayActivities');
+        if (container && !container.classList.contains('hidden')) {
+          const currentDayEl = document.querySelector('.calendar-day[data-date]') as HTMLElement;
+          if (currentDayEl) {
+            showDayActivities(currentDayEl.dataset.date!);
+          }
+        }
+      } catch (error) {
+        console.error('Error al actualizar actividad:', error);
+        alert('Error al actualizar la actividad');
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al editar actividad:', error);
+    alert('Error al cargar la actividad');
   }
 };
 
