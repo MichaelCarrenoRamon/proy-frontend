@@ -367,7 +367,7 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
       
       pdf.setFont('helvetica', 'normal');
       const value1Text = value1 || '';
-      pdf.text(value1Text, margin + 45, yPos + 4.5);
+      pdf.text(value1Text, margin + 2 + pdf.getTextWidth(label1) + 2, yPos + 4.5);
       
       // Columna 2
       pdf.rect(margin + col1Width, yPos, col2Width, rowHeight);
@@ -377,23 +377,31 @@ async function generateCompletePDF(cedula: string, nombre: string, surveyData: a
       
       pdf.setFont('helvetica', 'normal');
       const value2Text = value2 || '';
-      pdf.text(value2Text, margin + col1Width + 45, yPos + 4.5);
+      pdf.text(value2Text, margin + col1Width + 2 + pdf.getTextWidth(label2) + 2, yPos + 4.5);
       
       yPos += rowHeight;
     };
 
     // Función para agregar fila de 1 columna completa
-    const addSingleRow = (label: string, value: string, rowHeight: number = 7) => {
-      pdf.rect(margin, yPos, contentWidth, rowHeight);
+    const addSingleRow = (label: string, value: string, minHeight: number = 7) => {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
+      const labelWidth = pdf.getTextWidth(label);
+      
+      const maxWidth = contentWidth - labelWidth - 6;
+      const valueText = value || '';
+      const wrappedText = pdf.splitTextToSize(valueText, maxWidth);
+
+      const lineHeight = 4;
+      const calculatedHeight = Math.max(minHeight, (wrappedText.length * lineHeight) + 3);
+      
+      pdf.rect(margin, yPos, contentWidth, calculatedHeight);
       pdf.text(label, margin + 2, yPos + 4.5);
       
       pdf.setFont('helvetica', 'normal');
-      const valueText = value || '';
-      pdf.text(valueText, margin + 45, yPos + 4.5);
+      pdf.text(wrappedText, margin + 2 + labelWidth + 2, yPos + 4.5);
       
-      yPos += rowHeight;
+      yPos += calculatedHeight;
     };
 
     // Llenar datos del usuario
